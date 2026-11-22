@@ -1,5 +1,6 @@
 package com.calemccammon.androidweather.core.testing
 
+import com.calemccammon.androidweather.core.domain.repository.AlertNotifier
 import com.calemccammon.androidweather.core.domain.repository.DeviceRepository
 import com.calemccammon.androidweather.core.domain.repository.ForecastRepository
 import com.calemccammon.androidweather.core.domain.repository.LocationRepository
@@ -12,6 +13,7 @@ import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.SavedPlace
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.model.UserSettings
+import com.calemccammon.androidweather.core.model.WeatherAlert
 import com.calemccammon.androidweather.core.model.WeatherException
 import com.calemccammon.androidweather.core.model.WeatherFailure
 import kotlinx.coroutines.CompletableDeferred
@@ -129,6 +131,10 @@ class FakeSettingsRepository(
     override suspend fun setUnits(units: Units) = state.update { it.copy(units = units) }
 
     override suspend fun setSelectedPlace(place: Place?) = state.update { it.copy(selectedPlace = place) }
+
+    override suspend fun setAlertsEnabled(enabled: Boolean) = state.update { it.copy(alertsEnabled = enabled) }
+
+    override suspend fun setNotifiedAlerts(ids: Set<String>) = state.update { it.copy(notifiedAlerts = ids) }
 }
 
 class FakeDeviceRepository(
@@ -145,5 +151,14 @@ class FakeLocationRepository(
     override suspend fun currentPlace(): Place? {
         gate?.await()
         return place
+    }
+}
+
+class FakeAlertNotifier : AlertNotifier {
+    /** Every alert shown, in order. */
+    val shown = mutableListOf<WeatherAlert>()
+
+    override fun show(alerts: List<WeatherAlert>) {
+        shown += alerts
     }
 }

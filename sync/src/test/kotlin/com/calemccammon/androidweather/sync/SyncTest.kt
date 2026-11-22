@@ -8,10 +8,14 @@ import androidx.work.NetworkType
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
+import com.calemccammon.androidweather.core.model.WeatherCondition
 import com.calemccammon.androidweather.core.model.WeatherFailure
+import com.calemccammon.androidweather.core.testing.FakeAlertNotifier
 import com.calemccammon.androidweather.core.testing.FakeForecastRepository
 import com.calemccammon.androidweather.core.testing.FakeSavedPlacesRepository
+import com.calemccammon.androidweather.core.testing.FakeSettingsRepository
 import com.calemccammon.androidweather.core.testing.MutableClock
 import com.calemccammon.androidweather.core.testing.Samples
 import kotlinx.coroutines.test.runTest
@@ -27,6 +31,8 @@ class SyncTest {
     private val clock = MutableClock()
     private val forecasts = FakeForecastRepository(clock)
     private val saved = FakeSavedPlacesRepository(listOf(Samples.asheville, Samples.lisbon))
+    private val settings = FakeSettingsRepository()
+    private val notifier = FakeAlertNotifier()
 
     /** Builds the worker as Hilt would, with stand-ins behind the use case. */
     private val factory =
@@ -35,7 +41,14 @@ class SyncTest {
                 appContext: Context,
                 workerClassName: String,
                 workerParameters: WorkerParameters,
-            ): ListenableWorker = SyncWorker(appContext, workerParameters, RefreshSavedPlaces(saved, forecasts, clock))
+            ): ListenableWorker =
+                SyncWorker(
+                    appContext,
+                    workerParameters,
+                    RefreshSavedPlaces(saved, forecasts, settings, clock),
+                    FindNewWeatherAlerts(saved, forecasts, settings),
+                    notifier,
+                )
         }
 
     private fun worker(attempt: Int = 0) =
@@ -52,6 +65,32 @@ class SyncTest {
             assertEquals(ListenableWorker.Result.success(), result)
             assertEquals(listOf(Samples.asheville, Samples.lisbon), forecasts.refreshed)
             assertEquals(Samples.forecast(), forecasts.heldFor(Samples.lisbon)?.forecast)
+        }
+
+    @Test
+    fun `a run tells the user of severe weather in what it fetched, if they asked`() =
+        runTest {
+            val stormy =
+                Samples.forecast().let {
+                    it.copy(
+                        days =
+                            it.days.map { day ->
+                                day.copy(condition = WeatherCondition.Thunderstorm)
+                            },
+                    )
+                }
+            forecasts.onNetwork[Samples.lisbon] = stormy
+
+            worker().doWork()
+            assertEquals(emptyList(), notifier.shown)
+
+            settings.setAlertsEnabled(true)
+            worker().doWork()
+            // Today and tomorrow at the one stormy place.
+            assertEquals(listOf(Samples.lisbon, Samples.lisbon), notifier.shown.map { it.place })
+
+            worker().doWork()
+            assertEquals(2, notifier.shown.size)
         }
 
     @Test

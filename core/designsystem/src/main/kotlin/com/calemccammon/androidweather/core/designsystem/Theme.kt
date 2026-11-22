@@ -22,7 +22,8 @@ fun WeatherTheme(
  * the Material Theme Builder (https://m3.material.io/theme-builder).
  */
 
-private val lightColors =
+/** The light scheme. Public for what draws without Compose's `MaterialTheme`: the widget. */
+val lightColors =
     lightColorScheme(
         primary = Color(0xFF3B608F),
         onPrimary = Color(0xFFFFFFFF),
@@ -62,7 +63,7 @@ private val lightColors =
         surfaceContainerLowest = Color(0xFFFFFFFF),
     )
 
-private val darkColors =
+val darkColors =
     darkColorScheme(
         primary = Color(0xFFA4C9FE),
         onPrimary = Color(0xFF00315D),

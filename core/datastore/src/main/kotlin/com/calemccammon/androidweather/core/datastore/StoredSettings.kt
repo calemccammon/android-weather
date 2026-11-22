@@ -18,6 +18,8 @@ data class StoredSettings(
     /** [METRIC], [IMPERIAL], or null if the user has never chosen. */
     val units: String? = null,
     val selectedPlace: StoredPlace? = null,
+    val alertsEnabled: Boolean = false,
+    val notifiedAlerts: Set<String> = emptySet(),
 ) {
     companion object {
         const val METRIC = "metric"

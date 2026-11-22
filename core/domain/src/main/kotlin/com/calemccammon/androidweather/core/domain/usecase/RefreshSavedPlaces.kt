@@ -2,6 +2,7 @@ package com.calemccammon.androidweather.core.domain.usecase
 
 import com.calemccammon.androidweather.core.domain.repository.ForecastRepository
 import com.calemccammon.androidweather.core.domain.repository.SavedPlacesRepository
+import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
 import com.calemccammon.androidweather.core.model.WeatherException
 import kotlinx.coroutines.flow.first
 import java.time.Clock
@@ -9,26 +10,29 @@ import java.time.Duration
 import javax.inject.Inject
 
 /**
- * Fetches the forecast of every saved place. This is what the background
- * refresh runs.
+ * Fetches the forecast of every saved place, and of the selected place, which
+ * the home screen and the widget show. This is what the background refresh runs.
  */
 class RefreshSavedPlaces
     @Inject
     constructor(
         private val places: SavedPlacesRepository,
         private val forecasts: ForecastRepository,
+        private val settings: SettingsRepository,
         private val clock: Clock,
     ) {
         /**
-         * Forecasts of places looked at in passing are forgotten after
-         * [KEEP_UNSAVED_FOR]. One place failing does not stop the rest. The outcome says whether
-         * running again later is worth it.
+         * One place failing does not stop the rest; the outcome says whether
+         * running again later is worth it. Forecasts of places looked at in
+         * passing are forgotten after [KEEP_UNSAVED_FOR].
          */
         suspend operator fun invoke(): Outcome {
             var worthRetrying = false
-            for (saved in places.places.first()) {
+            val kept = places.places.first().map { it.place } + listOfNotNull(settings.settings.first().selectedPlace)
+            // The selected place is often a saved one too.
+            for (place in kept.distinctBy { it.latitude to it.longitude }) {
                 try {
-                    forecasts.refresh(saved.place)
+                    forecasts.refresh(place)
                 } catch (e: WeatherException) {
                     if (e.failure.isTemporary) worthRetrying = true
                 }

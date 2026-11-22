@@ -16,4 +16,9 @@ enum class WeatherCondition {
     SnowShowers,
     Thunderstorm,
     Unknown,
+    ;
+
+    /** Weather worth warning someone about before they go out in it. */
+    val isSevere: Boolean
+        get() = this == Thunderstorm || this == FreezingRain || this == FreezingDrizzle
 }

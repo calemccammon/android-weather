@@ -48,7 +48,7 @@ class PlacesViewModelTest {
         PlacesViewModel(
             observeUnits = ObserveUnits(settings, FakeDeviceRepository(country = "GB")),
             observeSavedPlaceForecasts = ObserveSavedPlaceForecasts(saved, forecasts),
-            refreshSavedPlaces = RefreshSavedPlaces(saved, forecasts, clock),
+            refreshSavedPlaces = RefreshSavedPlaces(saved, forecasts, settings, clock),
             savedPlaces = saved,
             settings = settings,
         )
@@ -187,5 +187,16 @@ class PlacesViewModelTest {
                 assertEquals(PlacesEvent.RefreshFailed, awaitItem())
             }
             assertEquals(false, shown().refreshing)
+        }
+
+    @Test
+    fun `alerts are off until turned on, and the choice is remembered`() =
+        watching {
+            assertEquals(false, shown().alertsEnabled)
+
+            viewModel.setAlertsEnabled(true)
+
+            assertEquals(true, shown().alertsEnabled)
+            assertEquals(true, settings.current.alertsEnabled)
         }
 }

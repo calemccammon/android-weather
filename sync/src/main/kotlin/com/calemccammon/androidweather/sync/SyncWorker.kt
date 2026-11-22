@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.calemccammon.androidweather.core.domain.repository.AlertNotifier
+import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -12,8 +14,9 @@ import dagger.assisted.AssistedInject
  * The background refresh: fetches the forecast of every saved place, so the
  * app opens on recent weather and has something to show with no connection.
  *
- * It writes to the database and nothing else. A screen that is open at the
- * time shows the newer forecast because it watches the database.
+ * It writes to the database; a screen or widget showing at the time changes
+ * because it watches the database. Then it tells the user of any severe
+ * weather in what was fetched, if they have asked to be told.
  */
 @HiltWorker
 internal class SyncWorker
@@ -22,15 +25,23 @@ internal class SyncWorker
         @Assisted context: Context,
         @Assisted parameters: WorkerParameters,
         private val refreshSavedPlaces: RefreshSavedPlaces,
+        private val findNewWeatherAlerts: FindNewWeatherAlerts,
+        private val notifier: AlertNotifier,
     ) : CoroutineWorker(context, parameters) {
-        override suspend fun doWork(): Result =
-            when (refreshSavedPlaces()) {
+        override suspend fun doWork(): Result {
+            val outcome = refreshSavedPlaces()
+            // Whatever was fetched, even if some places failed, is looked
+            // through for severe weather the user has asked to be told of.
+            notifier.show(findNewWeatherAlerts())
+
+            return when (outcome) {
                 RefreshSavedPlaces.Outcome.Done -> Result.success()
                 // Tried again sooner than the next scheduled run, a few times;
                 // after that the next scheduled run is soon enough.
                 RefreshSavedPlaces.Outcome.RetryLater ->
                     if (runAttemptCount < MAX_RETRIES) Result.retry() else Result.failure()
             }
+        }
 
         companion object {
             const val MAX_RETRIES = 3

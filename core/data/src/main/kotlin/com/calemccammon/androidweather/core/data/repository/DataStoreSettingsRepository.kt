@@ -19,4 +19,8 @@ internal class DataStoreSettingsRepository
         override suspend fun setUnits(units: Units) = source.setUnits(units)
 
         override suspend fun setSelectedPlace(place: Place?) = source.setSelectedPlace(place)
+
+        override suspend fun setAlertsEnabled(enabled: Boolean) = source.setAlertsEnabled(enabled)
+
+        override suspend fun setNotifiedAlerts(ids: Set<String>) = source.setNotifiedAlerts(ids)
     }

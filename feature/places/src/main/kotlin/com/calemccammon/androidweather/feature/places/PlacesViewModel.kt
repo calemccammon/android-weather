@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -63,7 +64,9 @@ class PlacesViewModel
                         items.map { SavedPlaceUiModel.from(it, units) }
                     }
                 }.combine(refreshing) { places, refreshing -> PlacesState(ready = true, places, refreshing) }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), PlacesState())
+                .combine(settings.settings.map { it.alertsEnabled }.distinctUntilChanged()) { state, alerts ->
+                    state.copy(alertsEnabled = alerts)
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), PlacesState())
 
         /** Makes the place in row [id] the one the home screen shows. */
         fun open(id: Long) {
@@ -85,6 +88,14 @@ class PlacesViewModel
             val place = removed ?: return
             removed = null
             viewModelScope.launch { savedPlaces.save(place) }
+        }
+
+        /**
+         * Turns alerts of severe weather on or off. The screen turns them on
+         * only once the system will let the app notify.
+         */
+        fun setAlertsEnabled(enabled: Boolean) {
+            viewModelScope.launch { settings.setAlertsEnabled(enabled) }
         }
 
         /** Fetches every saved place's forecast now. */

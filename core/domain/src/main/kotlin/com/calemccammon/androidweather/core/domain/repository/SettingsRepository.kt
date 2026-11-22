@@ -13,4 +13,9 @@ interface SettingsRepository {
 
     /** Remembers which place the home screen shows; null for none. */
     suspend fun setSelectedPlace(place: Place?)
+
+    suspend fun setAlertsEnabled(enabled: Boolean)
+
+    /** Replaces the record of which alerts have been told. */
+    suspend fun setNotifiedAlerts(ids: Set<String>)
 }

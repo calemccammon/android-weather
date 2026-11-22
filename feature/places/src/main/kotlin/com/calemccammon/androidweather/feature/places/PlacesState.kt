@@ -20,6 +20,8 @@ data class PlacesState(
     val places: List<SavedPlaceUiModel> = emptyList(),
     /** Every place's forecast is being fetched, at the user's asking. */
     val refreshing: Boolean = false,
+    /** The user has asked to be told of severe weather at these places. */
+    val alertsEnabled: Boolean = false,
 )
 
 /** One row: a saved place and, if the device holds its forecast, the weather there. */

@@ -30,6 +30,14 @@ class SettingsDataSource
             store.updateData { it.copy(selectedPlace = stored) }
         }
 
+        suspend fun setAlertsEnabled(enabled: Boolean) {
+            store.updateData { it.copy(alertsEnabled = enabled) }
+        }
+
+        suspend fun setNotifiedAlerts(ids: Set<String>) {
+            store.updateData { it.copy(notifiedAlerts = ids) }
+        }
+
         private fun StoredSettings.toModel() =
             UserSettings(
                 units =
@@ -40,5 +48,7 @@ class SettingsDataSource
                         else -> null
                     },
                 selectedPlace = selectedPlace?.run { Place(latitude, longitude, name, region, country) },
+                alertsEnabled = alertsEnabled,
+                notifiedAlerts = notifiedAlerts,
             )
     }

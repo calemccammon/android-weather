@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -52,6 +54,7 @@ class PlacesScreenTest {
                     onUndoRemove = { asked += "undo" },
                     onRefresh = { asked += "refresh" },
                     onBack = { asked += "back" },
+                    onAlertsChange = { asked += "alerts:$it" },
                 )
             }
         }
@@ -108,5 +111,18 @@ class PlacesScreenTest {
         events.tryEmit(PlacesEvent.RefreshFailed)
 
         compose.onNodeWithText("Could not update every place. Check your connection.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the bell says what pressing it will do and reports the press`() {
+        show()
+
+        compose.onNodeWithContentDescription("Turn on severe weather alerts").assertIsOff().performClick()
+        assertEquals(listOf("alerts:true"), asked)
+
+        state = state.copy(alertsEnabled = true)
+
+        compose.onNodeWithContentDescription("Turn off severe weather alerts").assertIsOn().performClick()
+        assertEquals(listOf("alerts:true", "alerts:false"), asked)
     }
 }

@@ -1,6 +1,7 @@
 package com.calemccammon.androidweather.core.domain
 
 import app.cash.turbine.test
+import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.ObserveForecast
 import com.calemccammon.androidweather.core.domain.usecase.ObserveSavedPlaceForecasts
 import com.calemccammon.androidweather.core.domain.usecase.ObserveUnits
@@ -10,6 +11,8 @@ import com.calemccammon.androidweather.core.domain.usecase.SearchPlaces
 import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.model.UserSettings
+import com.calemccammon.androidweather.core.model.WeatherAlert
+import com.calemccammon.androidweather.core.model.WeatherCondition
 import com.calemccammon.androidweather.core.model.WeatherException
 import com.calemccammon.androidweather.core.model.WeatherFailure
 import com.calemccammon.androidweather.core.testing.FakeDeviceRepository
@@ -21,6 +24,7 @@ import com.calemccammon.androidweather.core.testing.MutableClock
 import com.calemccammon.androidweather.core.testing.Samples
 import kotlinx.coroutines.test.runTest
 import java.time.Duration
+import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -30,6 +34,7 @@ class UseCasesTest {
     private val clock = MutableClock()
     private val forecasts = FakeForecastRepository(clock)
     private val saved = FakeSavedPlacesRepository()
+    private val settings = FakeSettingsRepository()
     private val offGlobe = Place(latitude = 91.0, longitude = 0.0)
 
     // Searching
@@ -50,7 +55,6 @@ class UseCasesTest {
     @Test
     fun `units are the user's choice, and the device's country's until they choose`() =
         runTest {
-            val settings = FakeSettingsRepository()
             val units = ObserveUnits(settings, FakeDeviceRepository(country = "US"))
 
             units().test {
@@ -186,7 +190,7 @@ class UseCasesTest {
             }
         }
 
-    private val refreshSaved = RefreshSavedPlaces(saved, forecasts, clock)
+    private val refreshSaved = RefreshSavedPlaces(saved, forecasts, settings, clock)
 
     @Test
     fun `the background refresh fetches every saved place and forgets old unsaved forecasts`() =
@@ -225,9 +229,112 @@ class UseCasesTest {
         }
 
     @Test
+    fun `the selected place is refreshed too, once if it is also saved`() =
+        runTest {
+            saved.save(Samples.asheville)
+            settings.setSelectedPlace(Samples.lisbon)
+
+            refreshSaved()
+            assertEquals(listOf(Samples.asheville, Samples.lisbon), forecasts.refreshed)
+
+            settings.setSelectedPlace(Samples.asheville)
+            refreshSaved()
+            assertEquals(listOf(Samples.asheville, Samples.lisbon, Samples.asheville), forecasts.refreshed)
+        }
+
+    @Test
     fun `with no saved places the refresh has nothing to fetch`() =
         runTest {
             assertEquals(RefreshSavedPlaces.Outcome.Done, refreshSaved())
             assertEquals(emptyList(), forecasts.refreshed)
         }
+
+    // Alerts
+
+    private val findAlerts = FindNewWeatherAlerts(saved, forecasts, settings)
+
+    /** A forecast made on the 18th with [conditions] on that day and the days after. */
+    private fun forecastWith(vararg conditions: WeatherCondition) =
+        Samples.forecast(days = conditions.size).let { forecast ->
+            forecast.copy(days = forecast.days.mapIndexed { i, day -> day.copy(condition = conditions[i]) })
+        }
+
+    @Test
+    fun `severe weather today or tomorrow at a saved place is an alert, and later days are not`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            saved.save(Samples.lisbon)
+            forecasts.hold(
+                Samples.asheville,
+                forecastWith(WeatherCondition.Rain, WeatherCondition.Thunderstorm, WeatherCondition.FreezingRain),
+            )
+            forecasts.hold(Samples.lisbon, forecastWith(WeatherCondition.FreezingDrizzle, WeatherCondition.Clear))
+
+            val alerts = findAlerts()
+
+            assertEquals(
+                listOf(
+                    WeatherAlert(
+                        1,
+                        Samples.asheville,
+                        LocalDate.parse("2026-11-19"),
+                        WeatherCondition.Thunderstorm,
+                        false,
+                    ),
+                    WeatherAlert(
+                        2,
+                        Samples.lisbon,
+                        LocalDate.parse("2026-11-18"),
+                        WeatherCondition.FreezingDrizzle,
+                        true,
+                    ),
+                ),
+                alerts,
+            )
+        }
+
+    @Test
+    fun `an alert is told once, and again only if it leaves the forecast and comes back`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
+
+            assertEquals(1, findAlerts().size)
+            assertEquals(emptyList(), findAlerts())
+            assertEquals(setOf("1|2026-11-18|Thunderstorm"), settings.current.notifiedAlerts)
+
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Clear))
+            assertEquals(emptyList(), findAlerts())
+            assertEquals(emptySet(), settings.current.notifiedAlerts)
+
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
+            assertEquals(1, findAlerts().size)
+        }
+
+    @Test
+    fun `there are no alerts until the user asks for them, nor for places with nothing held`() =
+        runTest {
+            saved.save(Samples.asheville)
+            saved.save(Samples.lisbon)
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
+
+            assertEquals(emptyList(), findAlerts())
+            // Nothing is recorded as told, so asking later still tells it.
+            assertEquals(emptySet(), settings.current.notifiedAlerts)
+
+            settings.setAlertsEnabled(true)
+            assertEquals(listOf(Samples.asheville), findAlerts().map { it.place })
+        }
+
+    @Test
+    fun `only thunderstorms and freezing rain or drizzle are severe`() {
+        val severe = WeatherCondition.entries.filter { it.isSevere }
+
+        assertEquals(
+            listOf(WeatherCondition.FreezingDrizzle, WeatherCondition.FreezingRain, WeatherCondition.Thunderstorm),
+            severe,
+        )
+    }
 }
