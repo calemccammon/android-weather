@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Every string the saved places screen shows or speaks. -->
+<resources>
+    <string name="feature_places_title">Saved places</string>
+    <string name="feature_places_back">Back</string>
+    <string name="feature_places_empty">No saved places yet. Open a place and press the bookmark to keep it here.</string>
+    <!-- Name of the button on a row that stops keeping the place. %1$s is the place. -->
+    <string name="feature_places_remove">Remove %1$s</string>
+    <!-- Shown after a place is removed. %1$s is the place. -->
+    <string name="feature_places_removed">Removed %1$s</string>
+    <string name="feature_places_undo">Undo</string>
+    <!-- Shown when pulling to refresh could not update every place. -->
+    <string name="feature_places_refresh_failed">Could not update every place. Check your connection.</string>
+    <!-- A row as one sentence for a screen reader. %1$s place, %2$s condition, %3$s spoken temperature. -->
+    <string name="feature_places_row_description">%1$s: %2$s, %3$s</string>
+</resources>

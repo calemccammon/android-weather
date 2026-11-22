@@ -1,0 +1,4 @@
+<resources>
+    <!-- The name under the launcher icon. What each screen says is in its own module. -->
+    <string name="app_name">Weather</string>
+</resources>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Every string the home screen shows or speaks. -->
+<resources>
+    <!-- Search -->
+    <string name="feature_home_search_hint">Search for a place</string>
+    <!-- Shown under the open search bar before anything is typed. -->
+    <string name="feature_home_search_prompt">Type a city, town or postcode</string>
+    <!-- %1$s is what was typed. -->
+    <string name="feature_home_search_nothing_found">Nothing found for \"%1$s\"</string>
+    <!-- Screen-reader name of the progress bar shown while a search is on its way. -->
+    <string name="feature_home_search_searching">Searching</string>
+    <!-- Name of the button that deselects the current place. -->
+    <string name="feature_home_clear_place">Clear place</string>
+    <!-- Name of the button that opens the list of saved places. -->
+    <string name="feature_home_open_saved_places">Saved places</string>
+
+    <!-- Forecast -->
+    <!-- Shown in the forecast area while no place is selected. -->
+    <string name="feature_home_forecast_hint">Search for a place, or press and hold on the map, to see its forecast.</string>
+    <!-- Screen-reader name of the progress bar shown while a forecast is on its way. -->
+    <string name="feature_home_forecast_loading">Loading the forecast</string>
+    <string name="feature_home_forecast_this_week">This week</string>
+    <string name="feature_home_forecast_no_days">No forecast for the coming days.</string>
+    <!-- Credit the weather service asks for. -->
+    <string name="feature_home_forecast_credit">Weather data by Open-Meteo.com</string>
+    <!-- Names of the button that keeps the place, or stops keeping it. -->
+    <string name="feature_home_save_place">Save place</string>
+    <string name="feature_home_remove_place">Remove from saved places</string>
+
+    <!-- How old the forecast on screen is. -->
+    <string name="feature_home_updated_just_now">Updated just now</string>
+    <plurals name="feature_home_updated_minutes">
+        <item quantity="one">Updated %1$d minute ago</item>
+        <item quantity="other">Updated %1$d minutes ago</item>
+    </plurals>
+    <plurals name="feature_home_updated_hours">
+        <item quantity="one">Updated %1$d hour ago</item>
+        <item quantity="other">Updated %1$d hours ago</item>
+    </plurals>
+    <plurals name="feature_home_updated_days">
+        <item quantity="one">Updated %1$d day ago</item>
+        <item quantity="other">Updated %1$d days ago</item>
+    </plurals>
+    <!-- Shown over a forecast kept from earlier when a newer one could not be
+         fetched. %1$s is what went wrong, a full sentence. -->
+    <string name="feature_home_showing_saved_forecast">%1$s Showing the last forecast fetched.</string>
+
+    <!-- Units -->
+    <string name="feature_home_units_celsius">°C</string>
+    <string name="feature_home_units_fahrenheit">°F</string>
+    <!-- Screen-reader names of the two units choices. -->
+    <string name="feature_home_units_celsius_name">Celsius and km/h</string>
+    <string name="feature_home_units_fahrenheit_name">Fahrenheit and mph</string>
+
+    <!-- Map -->
+    <!-- Credit the map's makers ask for. -->
+    <string name="feature_home_map_credit">© OpenStreetMap contributors, OpenMapTiles, OpenFreeMap</string>
+    <string name="feature_home_map_label">Map. Press and hold to pick a point.</string>
+    <!-- Screen-reader name of the pin on the map. -->
+    <string name="feature_home_selected_place">Selected place</string>
+
+    <!-- Location -->
+    <!-- Name of the button that shows the weather where the device is. -->
+    <string name="feature_home_my_location">Show the weather where I am</string>
+    <!-- Screen-reader name of the progress ring shown while the device finds itself. -->
+    <string name="feature_home_locating">Finding where you are</string>
+    <!-- Shown when the user has not allowed the app to use location. -->
+    <string name="feature_home_location_denied">Location access is off, so the app cannot tell where you are.</string>
+    <string name="feature_home_open_settings">Settings</string>
+    <string name="feature_home_location_unavailable">Could not find where you are. Check that location is turned on.</string>
+
+    <string name="feature_home_feels_like">Feels like %1$d°</string>
+    <!-- %1$s is a speed such as "12 km/h". -->
+    <string name="feature_home_wind">Wind %1$s</string>
+    <!-- Chance of rain or snow in a forecast row. -->
+    <string name="feature_home_precipitation_chance">%1$d%%</string>
+
+    <!-- Days of the week, short for the forecast's rows and in full for a screen reader. -->
+    <string name="feature_home_today">Today</string>
+    <string name="feature_home_day_short_monday">Mon</string>
+    <string name="feature_home_day_short_tuesday">Tue</string>
+    <string name="feature_home_day_short_wednesday">Wed</string>
+    <string name="feature_home_day_short_thursday">Thu</string>
+    <string name="feature_home_day_short_friday">Fri</string>
+    <string name="feature_home_day_short_saturday">Sat</string>
+    <string name="feature_home_day_short_sunday">Sun</string>
+    <string name="feature_home_day_monday">Monday</string>
+    <string name="feature_home_day_tuesday">Tuesday</string>
+    <string name="feature_home_day_wednesday">Wednesday</string>
+    <string name="feature_home_day_thursday">Thursday</string>
+    <string name="feature_home_day_friday">Friday</string>
+    <string name="feature_home_day_saturday">Saturday</string>
+    <string name="feature_home_day_sunday">Sunday</string>
+
+    <!-- Whole blocks as one sentence for a screen reader. -->
+    <!-- %1$s condition, %2$s spoken temperature, %3$d feels-like temperature, %4$s speed. -->
+    <string name="feature_home_current_description">Now: %1$s, %2$s, feels like %3$d, wind %4$s</string>
+    <!-- %1$s day, %2$s condition, %3$d low, %4$d high, %5$d chance of precipitation. -->
+    <string name="feature_home_day_description">%1$s: %2$s, low %3$d°, high %4$d°</string>
+    <string name="feature_home_day_description_with_chance">%1$s: %2$s, low %3$d°, high %4$d°, %5$d%% chance of precipitation</string>
+</resources>
