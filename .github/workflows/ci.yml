@@ -28,6 +28,8 @@ jobs:
       # ktlint: formatting and style. detekt: code smells. lint: Android Lint,
       # with warnings counted as errors.
       - run: ./gradlew ktlintCheck detekt lint --continue
+      # Every class the UI promises Compose is immutable is checked field by field.
+      - run: ./gradlew checkComposeStability -PcomposeReports --continue
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -52,6 +54,14 @@ jobs:
       # Every module's tests, on the JVM. Those that need Android (the
       # database, the screens, the background refresh) run on Robolectric.
       - run: ./gradlew test testDebugUnitTest --continue
+      # The screens are drawn and compared with the pictures in src/test/snapshots.
+      - run: ./gradlew verifyRoborazziDebug --continue
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: screenshot-differences
+          path: "**/build/outputs/roborazzi/"
+          retention-days: 14
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -59,9 +69,42 @@ jobs:
           path: "**/build/reports/tests/"
           retention-days: 14
 
+  device:
+    name: Tests on an emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # Lets the emulator use the runner's hardware virtualisation.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # The whole app, with Hilt, Room and WorkManager, against a stand-in
+      # for the weather service running on the emulator.
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: ./gradlew :app:connectedDebugAndroidTest
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: device-test-reports
+          path: app/build/reports/androidTests/
+          retention-days: 14
+
   build:
     name: Build debug and release APKs
-    needs: [lint, test]
+    needs: [lint, test, device]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

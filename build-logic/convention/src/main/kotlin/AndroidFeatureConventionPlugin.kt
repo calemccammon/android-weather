@@ -1,7 +1,9 @@
 import com.calemccammon.androidweather.buildlogic.library
 import com.calemccammon.androidweather.buildlogic.libs
+import io.github.takahirom.roborazzi.RoborazziExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 
 /**
@@ -19,6 +21,14 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             pluginManager.apply("weather.hilt")
             // Routes are serializable objects.
             pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
+            pluginManager.apply("io.github.takahirom.roborazzi")
+
+            extensions.configure<RoborazziExtension> {
+                // Pictures of the screens, committed beside the tests that take
+                // them. `recordRoborazziDebug` draws them again;
+                // `verifyRoborazziDebug` fails if a screen no longer matches.
+                outputDir.set(layout.projectDirectory.dir("src/test/snapshots"))
+            }
 
             dependencies {
                 "implementation"(project(":core:model"))
@@ -34,6 +44,8 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
                 "implementation"(libs.library("kotlinx-serialization-json"))
 
                 "testImplementation"(project(":core:testing"))
+                "testImplementation"(libs.library("roborazzi"))
+                "testImplementation"(libs.library("roborazzi-compose"))
             }
         }
 }

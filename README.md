@@ -20,7 +20,10 @@ frameworks:
 [capacitor-weather](https://github.com/calemccammon/capacitor-weather).
 Those six stop at one screen that asks the network every time. This one goes
 on to what a shipped Android app needs: a modular build, a database as the
-source of truth, background work and a runtime permission.
+source of truth, background work, runtime permissions, a widget,
+notifications, and tests that run the whole app on a device.
+
+![The widget on a home screen, showing the temperature, conditions and today's range for Lisbon](docs/screenshot-widget.png)
 
 ## What it does
 
@@ -42,6 +45,13 @@ source of truth, background work and a runtime permission.
 - **Background refresh**: every three hours, with a connection and battery to
   spare, the saved places' forecasts are fetched again. A screen that is open
   at the time changes by itself.
+- **A home-screen widget** with the weather at the place the app shows. It
+  is redrawn whenever that changes, and pressing it opens the app.
+- **Severe weather alerts**: turned on from the saved places screen, which
+  asks for the notification permission where Android requires it. After each
+  background refresh, a thunderstorm or freezing rain forecast today or
+  tomorrow at a saved place is told once, in a notification that opens the
+  app on that place.
 - **Celsius or Fahrenheit**, remembered between launches. Forecasts are kept
   in metric and converted on the device, so changing units fetches nothing.
 - **Adapts to the window**: a draggable bottom sheet on a phone, a side panel
@@ -61,8 +71,11 @@ depends on, and checked by the compiler rather than by review.
 app ─────────── feature:home ───┐
  │              feature:places ─┼── core:domain ── core:model
  │                              ├── core:ui ────── core:designsystem
- ├── sync ──────────────────────┘
+ ├── sync, widget ──────────────┘
+ ├── core:notifications
  └── core:data ── core:network, core:database, core:datastore
+
+benchmark ── drives app from outside
 ```
 
 | Module              | What it holds                                                                                                                                                                                                                                                  |
@@ -78,6 +91,9 @@ app ─────────── feature:home ───┐
 | `core:testing`      | Stand-ins for every repository, sample data and a clock that tests move by hand.                                                                                                                                                                                |
 | `feature:home`      | The map, the search bar and the forecast, with their view models.                                                                                                                                                                                               |
 | `feature:places`    | The saved places list and its view model.                                                                                                                                                                                                                       |
+| `core:notifications`| The alert notifications and their channel.                                                                                                                                                                                                                     |
+| `widget`            | The Glance widget, the state it shows and what keeps it drawn.                                                                                                                                                                                                  |
+| `benchmark`         | The baseline profile generator and the startup benchmark, which start the release build from outside.                                                                                                                                                           |
 | `sync`              | The WorkManager worker and its schedule.                                                                                                                                                                                                                        |
 | `app`               | The application class, the activity and the navigation graph. The only module that sees both the screens and where their data comes from.                                                                                                                      |
 
@@ -88,7 +104,7 @@ other exists.
 
 Each module's build file is a few lines, because what modules have in common
 is in `build-logic`: convention plugins for an Android library, Compose, Hilt,
-Room, a feature and a plain Kotlin library. They set the SDK levels, turn
+Room, a feature, a test module and a plain Kotlin library. They set the SDK levels, turn
 compiler and Lint warnings into errors, and apply ktlint and detekt. Versions
 are in `gradle/libs.versions.toml`.
 
@@ -106,8 +122,9 @@ screen ◄── view model ◄── ObserveForecast ◄── Room (Flow)
 - `ForecastRepository.observe` only reads the database. `refresh` fetches and
   writes, and returns nothing; what it wrote reaches the screen through
   `observe`.
-- So the home screen, the saved places list and the background worker cannot
-  disagree, and none of them needs to be told when another has fetched.
+- So the home screen, the saved places list, the widget and the background
+  worker cannot disagree, and none of them needs to be told when another has
+  fetched.
 - The view models keep nothing of their own to show. The selected place and
   the units are settings; the forecast is whatever the database holds. The
   screen is therefore the same after the process is killed.
@@ -142,11 +159,14 @@ The location button needs Google Play services on the device.
 ## Checks
 
 ```sh
-./gradlew ktlintCheck detekt lint   # `./gradlew ktlintFormat` fixes formatting
-./gradlew test testDebugUnitTest    # every test
+./gradlew ktlintCheck detekt lint                    # `./gradlew ktlintFormat` fixes formatting
+./gradlew checkComposeStability -PcomposeReports     # no unstable field in a class the UI calls immutable
+./gradlew test testDebugUnitTest                     # every JVM test
+./gradlew verifyRoborazziDebug                       # the screens against their pictures
+./gradlew :app:connectedDebugAndroidTest             # the whole app, on a connected device or emulator
 ```
 
-The tests run on the JVM, 138 of them:
+**On the JVM**, 166 tests:
 
 - **Model and domain**: plain unit tests of the rules, against the stand-ins
   in `core:testing`.
@@ -156,14 +176,49 @@ The tests run on the JVM, 138 of them:
   Robolectric.
 - **Settings**: DataStore over a real file, including one from a later version
   and one that is not JSON.
-- **Background refresh**: the worker built with stand-ins and run with
-  WorkManager's test builder.
+- **Background refresh, notifications, widget**: the worker run with
+  WorkManager's test builder, notifications read back from the system's
+  notification manager, the widget drawn with Glance's test harness.
 - **View models**: on a test dispatcher, with the clock moved by hand.
 - **Screens**: Compose UI tests of both whole screens, drawn by Robolectric
   with a stand-in for the map, at phone and wide sizes.
+- **Screenshots**: eight pictures of the two screens, light and dark, kept in
+  each feature's `src/test/snapshots` and compared by Roborazzi.
+  `./gradlew recordRoborazziDebug` draws them again after an intended change.
 
-`.github/workflows/ci.yml` runs all of these on pushes to `main` and on pull
-requests, then builds the debug and release APKs and uploads them.
+**On a device**, six tests in `app/src/androidTest` run the app as shipped
+from the HTTP client inwards: real screens, view models, Hilt graph, Room
+database and settings file. A stand-in for Open-Meteo runs on the device and
+one small Hilt module points the app at it.
+
+- **Journeys**: search, select, drag the sheet up, save, find the place among
+  the saved ones, remove it and undo; then reopen with the service down and
+  find the forecast still there.
+- **Scheduled refresh**: the worker Hilt builds, run by WorkManager's test
+  driver as a periodic job with its constraints, checked for what it wrote to
+  the database and for the notifications it raised.
+
+Each device test runs in a fresh process with the app's data cleared.
+
+**Compose stability.** The UI's models are marked `@Immutable`, which the
+compiler takes on trust. `checkComposeStability` reads the compiler's own
+report and fails if any such class holds a field the compiler cannot vouch
+for. Types from outside the app that are known not to change are listed in
+`config/compose-stability.conf`.
+
+**Startup.** `./gradlew :app:generateBaselineProfile` writes the baseline
+profile, committed under `app/src/release/generated` because producing it
+needs a device. `./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest`
+times a cold start with and without it (on an emulator, add
+`-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR`).
+On the API 36 emulator the median of five cold starts was 475 ms with the
+profile and 500 ms without, a difference inside the noise there; it has not
+been measured on a phone.
+
+`.github/workflows/ci.yml` runs the static checks, the JVM tests, the
+screenshot comparison and the device tests (on an emulator) on pushes to
+`main` and on pull requests, then builds the debug and release APKs and
+uploads them.
 
 ## Data and credits
 
@@ -183,6 +238,12 @@ requests, then builds the debug and release APKs and uploads them.
   are not, beyond what MapLibre caches by itself.
 - **Search needs a connection.** Only forecasts and saved places are kept.
 - **Location needs Google Play services**, and is approximate by design.
+- **Alerts come from the forecast, not from a warning service.** Open-Meteo
+  has no severe weather warnings, so an alert is a forecast of a thunderstorm
+  or freezing rain. They are found when the background refresh runs, which
+  Android may delay.
+- **The widget shows one place**, the one the app shows, and has no picture
+  for the conditions.
 - **There is one version of the database**, so no migration has been written
   or tested yet.
 - **The release build is signed with the debug key.** There is no release key

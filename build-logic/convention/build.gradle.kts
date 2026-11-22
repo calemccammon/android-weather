@@ -13,6 +13,7 @@ dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.ktlint.gradlePlugin)
+    compileOnly(libs.roborazzi.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
 }
 
