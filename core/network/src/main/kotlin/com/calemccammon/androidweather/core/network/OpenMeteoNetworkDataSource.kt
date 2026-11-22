@@ -28,12 +28,11 @@ import java.time.Duration
  */
 internal class OpenMeteoNetworkDataSource(
     client: OkHttpClient,
-    geocodingUrl: String = GEOCODING_URL,
-    forecastUrl: String = FORECAST_URL,
+    urls: OpenMeteoUrls = OpenMeteoUrls(),
 ) : WeatherNetworkDataSource {
     private val converter = json.asConverterFactory("application/json".toMediaType())
-    private val geocoding: GeocodingApi = retrofit(client, geocodingUrl).create()
-    private val forecasts: ForecastApi = retrofit(client, forecastUrl).create()
+    private val geocoding: GeocodingApi = retrofit(client, urls.geocoding).create()
+    private val forecasts: ForecastApi = retrofit(client, urls.forecast).create()
 
     override suspend fun searchPlaces(query: String): List<Place> =
         ask { geocoding.search(query, MAX_RESULTS).results.map(PlaceDto::toDomain) }
@@ -100,8 +99,6 @@ internal class OpenMeteoNetworkDataSource(
         /** How long to wait for an answer before giving up. */
         val defaultTimeout: Duration = Duration.ofSeconds(15)
 
-        private const val GEOCODING_URL = "https://geocoding-api.open-meteo.com/"
-        private const val FORECAST_URL = "https://api.open-meteo.com/"
         private const val MAX_RESULTS = 8
         private const val FORECAST_DAYS = 7
         private const val FIRST_SERVER_ERROR = 500

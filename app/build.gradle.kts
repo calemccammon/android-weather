@@ -11,6 +11,15 @@ android {
         applicationId = "com.calemccammon.androidweather"
         versionCode = 1
         versionName = "1.0"
+
+        // Starts the tests that run on a device with Hilt's test application
+        // in place of the app's own. Each test runs in a fresh process with
+        // the app's data cleared, so none sees what another saved.
+        testInstrumentationRunner = "com.calemccammon.androidweather.HiltTestRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+    }
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
     buildTypes {
         release {
@@ -48,4 +57,22 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.work.runtime)
     ksp(libs.androidx.hilt.compiler)
+
+    // Tests of the whole app on a device.
+    androidTestImplementation(projects.core.domain)
+    androidTestImplementation(projects.core.model)
+    androidTestImplementation(projects.core.network)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.kotlin.test)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.okhttp.mockwebserver)
+    androidTestUtil(libs.androidx.test.orchestrator)
+    kspAndroidTest(libs.hilt.compiler)
 }

@@ -30,8 +30,7 @@ class OpenMeteoNetworkDataSourceTest {
         source =
             OpenMeteoNetworkDataSource(
                 client = OpenMeteoNetworkDataSource.httpClient(timeout = Duration.ofMillis(500)),
-                geocodingUrl = url,
-                forecastUrl = url,
+                urls = OpenMeteoUrls(geocoding = url, forecast = url),
             )
     }
 

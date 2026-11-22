@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The tests that run the whole app stand a server of their own on the
+     device in for the weather service, and it speaks plain HTTP. Debug builds
+     may talk to it; nothing else is allowed in the clear, and release builds
+     do not have this file at all. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
