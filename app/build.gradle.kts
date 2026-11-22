@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.weather.android.application)
     alias(libs.plugins.weather.android.compose)
     alias(libs.plugins.weather.hilt)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -55,8 +56,13 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    // Installs the baseline profile where the store that delivered the app does not.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.work.runtime)
     ksp(libs.androidx.hilt.compiler)
+
+    // Where the baseline profile is generated: see the benchmark module.
+    baselineProfile(projects.benchmark)
 
     // Tests of the whole app on a device.
     androidTestImplementation(projects.core.domain)

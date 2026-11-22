@@ -132,5 +132,6 @@ weather-android-compose = { id = "weather.android.compose" }
 weather-android-feature = { id = "weather.android.feature" }
 weather-android-library = { id = "weather.android.library" }
 weather-android-room = { id = "weather.android.room" }
+weather-android-test = { id = "weather.android.test" }
 weather-hilt = { id = "weather.hilt" }
 weather-jvm-library = { id = "weather.jvm.library" }

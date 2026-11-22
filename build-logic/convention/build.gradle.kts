@@ -38,6 +38,10 @@ gradlePlugin {
             id = "weather.android.room"
             implementationClass = "AndroidRoomConventionPlugin"
         }
+        register("androidTest") {
+            id = "weather.android.test"
+            implementationClass = "AndroidTestConventionPlugin"
+        }
         register("hilt") {
             id = "weather.hilt"
             implementationClass = "HiltConventionPlugin"
