@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # ktlint: formatting and style. detekt: code smells. lint: Android Lint,
+      # with warnings counted as errors.
+      - run: ./gradlew ktlintCheck detekt lint --continue
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: lint-reports
+          path: |
+            **/build/reports/ktlint/
+            **/build/reports/detekt/
+            **/build/reports/lint-results-*.html
+          retention-days: 14
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # Every module's tests, on the JVM. Those that need Android (the
+      # database, the screens, the background refresh) run on Robolectric.
+      - run: ./gradlew test testDebugUnitTest --continue
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/"
+          retention-days: 14
+
+  build:
+    name: Build debug and release APKs
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # The release build is shrunk by R8, so building it checks the keep rules.
+      - run: ./gradlew :app:assembleDebug :app:assembleRelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-weather-apks
+          path: app/build/outputs/apk/**/*.apk
+          retention-days: 14
