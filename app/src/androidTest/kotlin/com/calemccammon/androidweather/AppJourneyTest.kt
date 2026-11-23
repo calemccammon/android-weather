@@ -94,16 +94,19 @@ class AppJourneyTest {
             // On a small screen the end of the forecast is further down still.
             compose.onNodeWithText("Weather data by Open-Meteo.com").performScrollTo().assertIsDisplayed()
 
+            // Saving and removing go through the database, so what follows
+            // each is waited for and not expected at once.
             compose.onNodeWithContentDescription("Save place").performClick()
+            waitFor("Remove from saved places")
             compose.onNodeWithContentDescription("Remove from saved places").assertIsOn()
 
             compose.onNodeWithContentDescription("Saved places").performClick()
-            compose.onNodeWithContentDescription("Asheville: Overcast, 7 degrees Celsius").assertIsDisplayed()
+            waitFor("Asheville: Overcast, 7 degrees Celsius")
 
             compose.onNodeWithContentDescription("Remove Asheville").performClick()
-            compose.onNodeWithText("Removed Asheville").assertIsDisplayed()
+            waitForText("Removed Asheville")
             compose.onNodeWithText("Undo").performClick()
-            compose.onNodeWithContentDescription("Asheville: Overcast, 7 degrees Celsius").assertIsDisplayed()
+            waitFor("Asheville: Overcast, 7 degrees Celsius")
         }
     }
 
@@ -121,10 +124,11 @@ class AppJourneyTest {
         launch().use {
             waitFor("Now: Clear, 18 degrees Celsius")
             compose.onNodeWithText("Lisbon, Portugal").assertIsDisplayed()
-            compose.onNodeWithText("Updated just now").assertExists()
+            // How long ago depends on how fast the device is.
+            waitForText("Updated ")
 
             // Changing units needs no connection either.
-            compose.onNodeWithContentDescription("Fahrenheit and mph").performClick()
+            compose.onNodeWithContentDescription("Fahrenheit and mph").performScrollTo().performClick()
             waitFor("Now: Clear, 64 degrees Fahrenheit")
         }
         // The forecast was fresh, so the service was not even asked.
