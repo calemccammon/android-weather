@@ -96,7 +96,8 @@ class AppJourneyTest {
 
             // Saving and removing go through the database, so what follows
             // each is waited for and not expected at once.
-            compose.onNodeWithContentDescription("Save place").performClick()
+            // Back at the top of the forecast, where the bookmark is.
+            compose.onNodeWithContentDescription("Save place").performScrollTo().performClick()
             waitFor("Remove from saved places")
             compose.onNodeWithContentDescription("Remove from saved places").assertIsOn()
 
