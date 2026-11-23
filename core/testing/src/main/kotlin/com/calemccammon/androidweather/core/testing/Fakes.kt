@@ -50,8 +50,8 @@ class FakeForecastRepository(
     /** Every place a refresh was asked for, in order. */
     val refreshed = mutableListOf<Place>()
 
-    /** The cut-off of every [prune], in order. */
-    val pruned = mutableListOf<Instant>()
+    /** The cut-off of every [prune] and the places it was told to keep, in order. */
+    val pruned = mutableListOf<Pair<Instant, List<Place>>>()
 
     /** Puts a forecast in as if fetched at [fetchedAt]. */
     fun hold(
@@ -71,8 +71,11 @@ class FakeForecastRepository(
         hold(place, onNetwork[place] ?: Samples.forecast())
     }
 
-    override suspend fun prune(before: Instant) {
-        pruned += before
+    override suspend fun prune(
+        before: Instant,
+        keep: Collection<Place>,
+    ) {
+        pruned += before to keep.toList()
     }
 }
 
@@ -158,7 +161,11 @@ class FakeAlertNotifier : AlertNotifier {
     /** Every alert shown, in order. */
     val shown = mutableListOf<WeatherAlert>()
 
-    override fun show(alerts: List<WeatherAlert>) {
-        shown += alerts
+    /** Whether the system lets the app notify. */
+    var allowed = true
+
+    override fun show(alerts: List<WeatherAlert>): Boolean {
+        if (allowed) shown += alerts
+        return allowed
     }
 }

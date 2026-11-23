@@ -8,8 +8,8 @@ import androidx.work.NetworkType
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
-import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
+import com.calemccammon.androidweather.core.domain.usecase.TellNewWeatherAlerts
 import com.calemccammon.androidweather.core.model.WeatherCondition
 import com.calemccammon.androidweather.core.model.WeatherFailure
 import com.calemccammon.androidweather.core.testing.FakeAlertNotifier
@@ -46,8 +46,7 @@ class SyncTest {
                     appContext,
                     workerParameters,
                     RefreshSavedPlaces(saved, forecasts, settings, clock),
-                    FindNewWeatherAlerts(saved, forecasts, settings),
-                    notifier,
+                    TellNewWeatherAlerts(saved, forecasts, settings, notifier),
                 )
         }
 

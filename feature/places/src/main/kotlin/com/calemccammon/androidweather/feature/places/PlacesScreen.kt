@@ -176,7 +176,7 @@ fun PlacesScreen(
     state: PlacesState,
     onOpen: (id: Long) -> Unit,
     onRemove: (id: Long) -> Unit,
-    onUndoRemove: () -> Unit,
+    onUndoRemove: (removal: Long) -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
     onAlertsChange: (Boolean) -> Unit = {},
@@ -254,7 +254,7 @@ private fun AlertsButton(
 private fun Snackbars(
     events: Flow<PlacesEvent>,
     snackbars: SnackbarHostState,
-    onUndoRemove: () -> Unit,
+    onUndoRemove: (removal: Long) -> Unit,
 ) {
     val resources = LocalResources.current
     val currentOnUndoRemove by rememberUpdatedState(onUndoRemove)
@@ -270,10 +270,12 @@ private fun Snackbars(
                             actionLabel = resources.getString(R.string.feature_places_undo),
                             duration = SnackbarDuration.Short,
                         )
-                    if (result == SnackbarResult.ActionPerformed) currentOnUndoRemove()
+                    if (result == SnackbarResult.ActionPerformed) currentOnUndoRemove(event.removal)
                 }
-                PlacesEvent.RefreshFailed ->
-                    snackbars.showSnackbar(resources.getString(R.string.feature_places_refresh_failed))
+                is PlacesEvent.RefreshFailed ->
+                    snackbars.showSnackbar(
+                        resources.getString(R.string.feature_places_refresh_failed, event.reason.asString(resources)),
+                    )
             }
         }
     }

@@ -9,6 +9,7 @@ import com.calemccammon.androidweather.core.model.SavedPlace
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.testing.Samples
 import com.github.takahirom.roborazzi.captureRoboImage
+import kotlinx.collections.immutable.toImmutableList
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -50,11 +51,12 @@ class PlacesScreenshotTest {
     }
 
     @Test
-    fun `saved places`() = capture("places", PlacesState(ready = true, places = rows, alertsEnabled = true))
+    fun `saved places`() =
+        capture("places", PlacesState(ready = true, places = rows.toImmutableList(), alertsEnabled = true))
 
     @Test
     fun `saved places in the dark theme`() =
-        capture("places_dark", PlacesState(ready = true, places = rows), dark = true)
+        capture("places_dark", PlacesState(ready = true, places = rows.toImmutableList()), dark = true)
 
     @Test
     fun `nothing saved`() = capture("places_empty", PlacesState(ready = true))

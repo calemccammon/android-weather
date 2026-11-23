@@ -9,8 +9,8 @@
     <!-- Shown after a place is removed. %1$s is the place. -->
     <string name="feature_places_removed">Removed %1$s</string>
     <string name="feature_places_undo">Undo</string>
-    <!-- Shown when pulling to refresh could not update every place. -->
-    <string name="feature_places_refresh_failed">Could not update every place. Check your connection.</string>
+    <!-- Shown when pulling to refresh could not update every place. %1$s is why, a full sentence. -->
+    <string name="feature_places_refresh_failed">Could not update every place. %1$s</string>
     <!-- A row as one sentence for a screen reader. %1$s place, %2$s condition, %3$s spoken temperature. -->
     <string name="feature_places_row_description">%1$s: %2$s, %3$s</string>
 
@@ -18,7 +18,7 @@
     <string name="feature_places_alerts_turn_on">Turn on severe weather alerts</string>
     <string name="feature_places_alerts_turn_off">Turn off severe weather alerts</string>
     <!-- Shown once alerts are on. -->
-    <string name="feature_places_alerts_on">You will be told of thunderstorms and freezing rain at these places.</string>
+    <string name="feature_places_alerts_on">You will be told of thunderstorms and freezing rain or drizzle at these places.</string>
     <string name="feature_places_alerts_off">Severe weather alerts are off.</string>
     <!-- Shown when the user has not allowed the app to notify. -->
     <string name="feature_places_alerts_denied">Notifications are off for this app, so it cannot send alerts.</string>

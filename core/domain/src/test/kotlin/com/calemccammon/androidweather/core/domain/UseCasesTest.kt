@@ -1,13 +1,13 @@
 package com.calemccammon.androidweather.core.domain
 
 import app.cash.turbine.test
-import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.ObserveForecast
 import com.calemccammon.androidweather.core.domain.usecase.ObserveSavedPlaceForecasts
 import com.calemccammon.androidweather.core.domain.usecase.ObserveUnits
 import com.calemccammon.androidweather.core.domain.usecase.RefreshForecast
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
 import com.calemccammon.androidweather.core.domain.usecase.SearchPlaces
+import com.calemccammon.androidweather.core.domain.usecase.TellNewWeatherAlerts
 import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.model.UserSettings
@@ -15,6 +15,7 @@ import com.calemccammon.androidweather.core.model.WeatherAlert
 import com.calemccammon.androidweather.core.model.WeatherCondition
 import com.calemccammon.androidweather.core.model.WeatherException
 import com.calemccammon.androidweather.core.model.WeatherFailure
+import com.calemccammon.androidweather.core.testing.FakeAlertNotifier
 import com.calemccammon.androidweather.core.testing.FakeDeviceRepository
 import com.calemccammon.androidweather.core.testing.FakeForecastRepository
 import com.calemccammon.androidweather.core.testing.FakePlaceSearchRepository
@@ -200,9 +201,13 @@ class UseCasesTest {
 
             val outcome = refreshSaved()
 
-            assertEquals(RefreshSavedPlaces.Outcome.Done, outcome)
+            assertEquals(RefreshSavedPlaces.Outcome(), outcome)
+            assertEquals(false, outcome.isWorthRetrying)
             assertEquals(listOf(Samples.asheville, Samples.lisbon), forecasts.refreshed)
-            assertEquals(listOf(clock.now - RefreshSavedPlaces.KEEP_UNSAVED_FOR), forecasts.pruned)
+            assertEquals(
+                listOf(clock.now - RefreshSavedPlaces.KEEP_UNSAVED_FOR to emptyList<Place>()),
+                forecasts.pruned,
+            )
         }
 
     @Test
@@ -214,18 +219,22 @@ class UseCasesTest {
 
             val outcome = refreshSaved()
 
-            assertEquals(RefreshSavedPlaces.Outcome.RetryLater, outcome)
+            assertEquals(listOf(WeatherFailure.NoConnection, WeatherFailure.NoConnection), outcome.failures)
+            assertEquals(true, outcome.isWorthRetrying)
             assertEquals(listOf(Samples.asheville, Samples.lisbon), forecasts.refreshed)
             assertEquals(1, forecasts.pruned.size)
         }
 
     @Test
-    fun `a failure that waiting will not mend is not tried again`() =
+    fun `a failure that waiting will not mend is reported but not worth another try`() =
         runTest {
             saved.save(Samples.asheville)
             forecasts.failure = WeatherFailure.BadResponse
 
-            assertEquals(RefreshSavedPlaces.Outcome.Done, refreshSaved())
+            val outcome = refreshSaved()
+
+            assertEquals(listOf(WeatherFailure.BadResponse), outcome.failures)
+            assertEquals(false, outcome.isWorthRetrying)
         }
 
     @Test
@@ -243,15 +252,28 @@ class UseCasesTest {
         }
 
     @Test
+    fun `the selected place's forecast is never forgotten, saved or not`() =
+        runTest {
+            settings.setSelectedPlace(Samples.lisbon)
+            forecasts.failure = WeatherFailure.NoConnection
+
+            refreshSaved()
+
+            // With no connection the old forecast is all there is to show.
+            assertEquals(listOf(listOf(Samples.lisbon)), forecasts.pruned.map { it.second })
+        }
+
+    @Test
     fun `with no saved places the refresh has nothing to fetch`() =
         runTest {
-            assertEquals(RefreshSavedPlaces.Outcome.Done, refreshSaved())
+            assertEquals(RefreshSavedPlaces.Outcome(), refreshSaved())
             assertEquals(emptyList(), forecasts.refreshed)
         }
 
     // Alerts
 
-    private val findAlerts = FindNewWeatherAlerts(saved, forecasts, settings)
+    private val notifier = FakeAlertNotifier()
+    private val tellAlerts = TellNewWeatherAlerts(saved, forecasts, settings, notifier)
 
     /** A forecast made on the 18th with [conditions] on that day and the days after. */
     private fun forecastWith(vararg conditions: WeatherCondition) =
@@ -259,8 +281,11 @@ class UseCasesTest {
             forecast.copy(days = forecast.days.mapIndexed { i, day -> day.copy(condition = conditions[i]) })
         }
 
+    private val stormToday =
+        WeatherAlert(Samples.asheville, LocalDate.parse("2026-11-18"), WeatherCondition.Thunderstorm, isToday = true)
+
     @Test
-    fun `severe weather today or tomorrow at a saved place is an alert, and later days are not`() =
+    fun `severe weather today or tomorrow at a saved place is told, and later days are not`() =
         runTest {
             settings.setAlertsEnabled(true)
             saved.save(Samples.asheville)
@@ -271,27 +296,20 @@ class UseCasesTest {
             )
             forecasts.hold(Samples.lisbon, forecastWith(WeatherCondition.FreezingDrizzle, WeatherCondition.Clear))
 
-            val alerts = findAlerts()
+            val told = tellAlerts()
 
-            assertEquals(
+            val expected =
                 listOf(
                     WeatherAlert(
-                        1,
                         Samples.asheville,
                         LocalDate.parse("2026-11-19"),
                         WeatherCondition.Thunderstorm,
                         false,
                     ),
-                    WeatherAlert(
-                        2,
-                        Samples.lisbon,
-                        LocalDate.parse("2026-11-18"),
-                        WeatherCondition.FreezingDrizzle,
-                        true,
-                    ),
-                ),
-                alerts,
-            )
+                    WeatherAlert(Samples.lisbon, LocalDate.parse("2026-11-18"), WeatherCondition.FreezingDrizzle, true),
+                )
+            assertEquals(expected, told)
+            assertEquals(expected, notifier.shown)
         }
 
     @Test
@@ -301,16 +319,65 @@ class UseCasesTest {
             saved.save(Samples.asheville)
             forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
 
-            assertEquals(1, findAlerts().size)
-            assertEquals(emptyList(), findAlerts())
-            assertEquals(setOf("1|2026-11-18|Thunderstorm"), settings.current.notifiedAlerts)
+            assertEquals(listOf(stormToday), tellAlerts())
+            assertEquals(emptyList(), tellAlerts())
+            assertEquals(setOf(stormToday.id), settings.current.notifiedAlerts)
 
             forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Clear))
-            assertEquals(emptyList(), findAlerts())
+            assertEquals(emptyList(), tellAlerts())
             assertEquals(emptySet(), settings.current.notifiedAlerts)
 
             forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
-            assertEquals(1, findAlerts().size)
+            assertEquals(listOf(stormToday), tellAlerts())
+            assertEquals(2, notifier.shown.size)
+        }
+
+    @Test
+    fun `an alert the system would not show is still new once it will`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
+            notifier.allowed = false
+
+            assertEquals(emptyList(), tellAlerts())
+            assertEquals(emptySet(), settings.current.notifiedAlerts)
+
+            notifier.allowed = true
+            assertEquals(listOf(stormToday), tellAlerts())
+            assertEquals(listOf(stormToday), notifier.shown)
+        }
+
+    @Test
+    fun `an alert already told stays told while a newer one cannot be shown`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm, WeatherCondition.Clear))
+            tellAlerts()
+
+            notifier.allowed = false
+            forecasts.hold(
+                Samples.asheville,
+                forecastWith(WeatherCondition.Thunderstorm, WeatherCondition.FreezingRain),
+            )
+            tellAlerts()
+
+            assertEquals(setOf(stormToday.id), settings.current.notifiedAlerts)
+        }
+
+    @Test
+    fun `a place removed and saved again is not told of the same storm twice`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
+            tellAlerts()
+
+            saved.remove(Samples.asheville)
+            saved.save(Samples.asheville)
+
+            assertEquals(emptyList(), tellAlerts())
         }
 
     @Test
@@ -320,12 +387,13 @@ class UseCasesTest {
             saved.save(Samples.lisbon)
             forecasts.hold(Samples.asheville, forecastWith(WeatherCondition.Thunderstorm))
 
-            assertEquals(emptyList(), findAlerts())
+            assertEquals(emptyList(), tellAlerts())
             // Nothing is recorded as told, so asking later still tells it.
             assertEquals(emptySet(), settings.current.notifiedAlerts)
+            assertEquals(emptyList(), notifier.shown)
 
             settings.setAlertsEnabled(true)
-            assertEquals(listOf(Samples.asheville), findAlerts().map { it.place })
+            assertEquals(listOf(Samples.asheville), tellAlerts().map { it.place })
         }
 
     @Test

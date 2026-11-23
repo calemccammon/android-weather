@@ -25,16 +25,16 @@ class SystemAlertNotifierTest {
     private val notifier = SystemAlertNotifier(context)
 
     private val storm =
-        WeatherAlert(1, Samples.asheville, LocalDate.parse("2026-11-18"), WeatherCondition.Thunderstorm, isToday = true)
+        WeatherAlert(Samples.asheville, LocalDate.parse("2026-11-18"), WeatherCondition.Thunderstorm, isToday = true)
     private val ice =
-        WeatherAlert(2, Samples.point, LocalDate.parse("2026-11-19"), WeatherCondition.FreezingRain, isToday = false)
+        WeatherAlert(Samples.point, LocalDate.parse("2026-11-19"), WeatherCondition.FreezingRain, isToday = false)
 
     private val titles
         get() = system.allNotifications.mapNotNull { it.extras.getString(NotificationCompat.EXTRA_TITLE) }.sorted()
 
     @Test
     fun `each alert is one notification, worded with its condition, day and place`() {
-        notifier.show(listOf(storm, ice))
+        assertEquals(true, notifier.show(listOf(storm, ice)))
 
         assertEquals(listOf("Freezing rain tomorrow in 33.86°S, 151.21°E", "Thunderstorm today in Asheville"), titles)
         assertEquals(listOf("Weather alerts"), system.notificationChannels.map { it.name.toString() })
@@ -64,8 +64,9 @@ class SystemAlertNotifierTest {
         notifier.show(listOf(ice))
 
         val opened = shadowOf(system.allNotifications.single().contentIntent).savedIntent
-        assertEquals(2L, AlertIntents.savedPlaceId(opened))
-        assertEquals(null, AlertIntents.savedPlaceId(Intent()))
+        assertEquals(Samples.point.latitude to Samples.point.longitude, AlertIntents.coordinates(opened))
+        assertEquals(null, AlertIntents.coordinates(Intent()))
+        assertEquals(null, AlertIntents.coordinates(null))
     }
 
     @Test
@@ -73,15 +74,17 @@ class SystemAlertNotifierTest {
         // As without the permission, or with the app's notifications turned off.
         system.setNotificationsEnabled(false)
 
-        notifier.show(listOf(storm))
+        val shown = notifier.show(listOf(storm))
 
+        // The caller is told, so the alert is not recorded as told.
+        assertEquals(false, shown)
         assertEquals(0, system.allNotifications.size)
         assertEquals(0, system.notificationChannels.size)
     }
 
     @Test
     fun `no alerts make no channel`() {
-        notifier.show(emptyList())
+        assertEquals(true, notifier.show(emptyList()))
 
         assertEquals(0, system.notificationChannels.size)
     }

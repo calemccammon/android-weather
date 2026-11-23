@@ -43,11 +43,13 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
                 tasks.matching { it.name == "compileDebugKotlin" }.configureEach { outputs.dir(reports) }
             }
 
-            // Fails if a class marked @Immutable holds something the compiler
-            // cannot vouch for. The mark is a promise the compiler takes on
-            // trust: it skips redrawing a composable whose values are "the
-            // same", and a promise that is not kept shows as a screen that
-            // does not update. This checks the promise field by field.
+            // Fails if a class the compiler treats as stable holds something
+            // it cannot vouch for. Marking a class @Immutable is a promise the
+            // compiler takes on trust: it skips redrawing a composable whose
+            // values are "the same", and a promise that is not kept shows as
+            // a screen that does not update. This checks the promise field by
+            // field: a field the compiler calls unstable, or one it can only
+            // judge when the app runs (a plain List, say), fails the build.
             tasks.register("checkComposeStability") {
                 group = "verification"
                 description = "Fails if a class the Compose compiler treats as stable has an unstable field."
@@ -67,12 +69,16 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
                                 when {
                                     line.startsWith("stable class ") -> stableClass = line.removeSuffix(" {")
                                     !line.startsWith(" ") -> stableClass = null
-                                    line.trimStart().startsWith("unstable ") ->
+                                    line.trimStart().startsWith("unstable ") ||
+                                        line.trimStart().startsWith("runtime ") ->
                                         stableClass?.let { broken += "$it:${line.trimEnd()}" }
                                 }
                             }
                         }
-                    check(broken.isEmpty()) { "Unstable fields in classes treated as stable:\n" + broken.joinToString("\n") }
+                    check(broken.isEmpty()) {
+                        "Fields the compiler cannot vouch for, in classes treated as stable:\n" +
+                            broken.joinToString("\n")
+                    }
                 }
             }
 
@@ -85,6 +91,8 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
                 "implementation"(libs.library("compose-material-icons-extended"))
                 "implementation"(libs.library("compose-ui"))
                 "implementation"(libs.library("compose-ui-tooling-preview"))
+                // Lists the Compose compiler can see will not change.
+                "api"(libs.library("kotlinx-collections-immutable"))
                 "debugImplementation"(libs.library("compose-ui-tooling"))
 
                 // Compose tests run on the JVM, drawn by Robolectric.

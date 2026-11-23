@@ -17,6 +17,7 @@ import com.calemccammon.androidweather.core.model.SavedPlace
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.testing.Samples
 import com.calemccammon.androidweather.core.ui.UiText
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -39,7 +40,7 @@ class PlacesScreenTest {
             SavedPlaceUiModel.from(SavedPlaceForecast(SavedPlace(2, Samples.point), cached = null), Units.Metric),
         )
 
-    private var state by mutableStateOf(PlacesState(ready = true, places = rows))
+    private var state by mutableStateOf(PlacesState(ready = true, places = rows.toImmutableList()))
     private val events = MutableSharedFlow<PlacesEvent>(extraBufferCapacity = 1)
     private val asked = mutableListOf<String>()
 
@@ -51,7 +52,7 @@ class PlacesScreenTest {
                     events = events,
                     onOpen = { asked += "open:$it" },
                     onRemove = { asked += "remove:$it" },
-                    onUndoRemove = { asked += "undo" },
+                    onUndoRemove = { asked += "undo:$it" },
                     onRefresh = { asked += "refresh" },
                     onBack = { asked += "back" },
                     onAlertsChange = { asked += "alerts:$it" },
@@ -97,20 +98,20 @@ class PlacesScreenTest {
     fun `a removal is told with a way to undo it`() {
         show()
 
-        events.tryEmit(PlacesEvent.Removed(UiText.Verbatim("Asheville")))
+        events.tryEmit(PlacesEvent.Removed(UiText.Verbatim("Asheville"), removal = 7))
 
         compose.onNodeWithText("Removed Asheville").assertIsDisplayed()
         compose.onNodeWithText("Undo").performClick()
-        assertEquals(listOf("undo"), asked)
+        assertEquals(listOf("undo:7"), asked)
     }
 
     @Test
     fun `a failed refresh is told`() {
         show()
 
-        events.tryEmit(PlacesEvent.RefreshFailed)
+        events.tryEmit(PlacesEvent.RefreshFailed(UiText.Verbatim("The service is down.")))
 
-        compose.onNodeWithText("Could not update every place. Check your connection.").assertIsDisplayed()
+        compose.onNodeWithText("Could not update every place. The service is down.").assertIsDisplayed()
     }
 
     @Test

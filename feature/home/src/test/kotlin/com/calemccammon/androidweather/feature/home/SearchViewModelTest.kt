@@ -59,7 +59,7 @@ class SearchViewModelTest {
             viewModel.queryChanged("ashev")
 
             assertEquals(SearchState.Loading("ashev"), shown)
-            advanceTimeBy(SearchViewModel.debounce - 1.milliseconds)
+            advanceTimeBy(SearchViewModel.DEBOUNCE - 1.milliseconds)
             assertEquals(emptyList(), places.queries)
 
             advanceTimeBy(1.milliseconds)

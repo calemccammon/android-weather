@@ -8,16 +8,18 @@ import com.calemccammon.androidweather.core.ui.PlaceUiModel
 import com.calemccammon.androidweather.core.ui.UiText
 import com.calemccammon.androidweather.core.ui.icon
 import com.calemccammon.androidweather.core.ui.label
-import com.calemccammon.androidweather.core.ui.uiText
+import com.calemccammon.androidweather.core.ui.spokenTemperature
+import com.calemccammon.androidweather.core.ui.temperature
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlin.math.roundToInt
-import com.calemccammon.androidweather.core.ui.R as CoreR
 
 /** What the saved places screen is showing. */
 @Immutable
 data class PlacesState(
     /** False until the saved places have been read, so "none yet" is not shown in passing. */
     val ready: Boolean = false,
-    val places: List<SavedPlaceUiModel> = emptyList(),
+    val places: ImmutableList<SavedPlaceUiModel> = persistentListOf(),
     /** Every place's forecast is being fetched, at the user's asking. */
     val refreshing: Boolean = false,
     /** The user has asked to be told of severe weather at these places. */
@@ -41,19 +43,11 @@ data class SavedPlaceUiModel(
             weather =
                 item.cached?.forecast?.current?.let { current ->
                     val degrees = current.temperature.roundToInt()
-                    val (shown, spoken) =
-                        when (units) {
-                            Units.Metric ->
-                                CoreR.string.core_ui_temperature_celsius to
-                                    CoreR.plurals.core_ui_spoken_celsius
-                            Units.Imperial ->
-                                CoreR.string.core_ui_temperature_fahrenheit to CoreR.plurals.core_ui_spoken_fahrenheit
-                        }
                     SavedPlaceWeatherUiModel(
                         icon = current.condition.icon(isDay = current.isDay),
-                        temperature = uiText(shown, degrees),
+                        temperature = units.temperature(degrees),
                         condition = current.condition.label,
-                        spokenTemperature = UiText.Plural(spoken, degrees),
+                        spokenTemperature = units.spokenTemperature(degrees),
                     )
                 },
         )
@@ -73,11 +67,17 @@ data class SavedPlaceWeatherUiModel(
 
 /** Something that happened once and is to be told once, in a snackbar. */
 sealed interface PlacesEvent {
-    /** A place was removed; [title] is its name. It can be put back with [PlacesViewModel.undoRemove]. */
+    /**
+     * A place was removed; [title] is its name. Handing [removal] to
+     * [PlacesViewModel.undoRemove] puts that place, and no other, back.
+     */
     data class Removed(
         val title: UiText,
+        val removal: Long,
     ) : PlacesEvent
 
-    /** Pulling to refresh could not update every place. */
-    data object RefreshFailed : PlacesEvent
+    /** Pulling to refresh could not update every place; [reason] is why, as a sentence. */
+    data class RefreshFailed(
+        val reason: UiText,
+    ) : PlacesEvent
 }

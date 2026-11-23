@@ -13,7 +13,7 @@ import java.time.Instant
 
 @Dao
 abstract class ForecastDao {
-    /** The forecast held for a spot, with its days in date order; null while there is none. */
+    /** The forecast held for a spot, with its days in no particular order; null while there is none. */
     @Transaction
     @Query("SELECT * FROM forecasts WHERE place_key = :placeKey")
     abstract fun observe(placeKey: String): Flow<ForecastWithDays?>
@@ -33,17 +33,21 @@ abstract class ForecastDao {
     }
 
     /**
-     * Deletes forecasts fetched before [before] whose spot is not a saved
-     * place. Returns how many went.
+     * Deletes forecasts fetched before [before] whose spot is neither a saved
+     * place nor one of [keep]. Returns how many went.
      */
     @Query(
         """
         DELETE FROM forecasts
         WHERE fetched_at < :before
         AND place_key NOT IN (SELECT place_key FROM saved_places)
+        AND place_key NOT IN (:keep)
         """,
     )
-    abstract suspend fun deleteUnsavedFetchedBefore(before: Instant): Int
+    abstract suspend fun deleteUnsavedFetchedBefore(
+        before: Instant,
+        keep: List<String> = emptyList(),
+    ): Int
 
     @Upsert
     protected abstract suspend fun upsert(forecast: ForecastEntity)

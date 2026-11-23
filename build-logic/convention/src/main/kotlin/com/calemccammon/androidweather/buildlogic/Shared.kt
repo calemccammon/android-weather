@@ -7,7 +7,6 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
@@ -86,9 +85,5 @@ internal fun Project.configureUnitTests() {
         "testImplementation"(libs.library("kotlin-test"))
         "testImplementation"(libs.library("kotlinx-coroutines-test"))
         "testImplementation"(libs.library("turbine"))
-    }
-    tasks.withType<Test>().configureEach {
-        // Robolectric downloads an Android image per SDK level; pin one.
-        systemProperty("robolectric.enabledSdks", "36")
     }
 }

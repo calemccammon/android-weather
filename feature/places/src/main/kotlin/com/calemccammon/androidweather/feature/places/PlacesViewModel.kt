@@ -9,7 +9,9 @@ import com.calemccammon.androidweather.core.domain.usecase.ObserveUnits
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
 import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.ui.PlaceUiModel
+import com.calemccammon.androidweather.core.ui.message
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -45,8 +47,9 @@ class PlacesViewModel
         /** The places behind the rows on screen, by row id. */
         private var shown: Map<Long, Place> = emptyMap()
 
-        /** The place last removed, for [undoRemove]. */
-        private var removed: Place? = null
+        /** Places removed and not put back, by the number their removal was given, for [undoRemove]. */
+        private val removed = mutableMapOf<Long, Place>()
+        private var removals = 0L
 
         private val refreshing = MutableStateFlow(false)
 
@@ -61,7 +64,7 @@ class PlacesViewModel
                 .flatMapLatest { units ->
                     observeSavedPlaceForecasts(units).map { items ->
                         shown = items.associate { it.saved.id to it.saved.place }
-                        items.map { SavedPlaceUiModel.from(it, units) }
+                        items.map { SavedPlaceUiModel.from(it, units) }.toImmutableList()
                     }
                 }.combine(refreshing) { places, refreshing -> PlacesState(ready = true, places, refreshing) }
                 .combine(settings.settings.map { it.alertsEnabled }.distinctUntilChanged()) { state, alerts ->
@@ -78,15 +81,19 @@ class PlacesViewModel
             val place = shown[id] ?: return
             viewModelScope.launch {
                 savedPlaces.remove(place)
-                removed = place
-                eventChannel.send(PlacesEvent.Removed(PlaceUiModel.from(place).title))
+                val removal = ++removals
+                removed[removal] = place
+                eventChannel.send(PlacesEvent.Removed(PlaceUiModel.from(place).title, removal))
             }
         }
 
-        /** Puts the place last removed back. It returns at the end of the list. */
-        fun undoRemove() {
-            val place = removed ?: return
-            removed = null
+        /**
+         * Puts back the place that [removal] took away. It returns at the end
+         * of the list. Each removal can be undone once, and undoing one leaves
+         * the others as they were.
+         */
+        fun undoRemove(removal: Long) {
+            val place = removed.remove(removal) ?: return
             viewModelScope.launch { savedPlaces.save(place) }
         }
 
@@ -104,8 +111,9 @@ class PlacesViewModel
             refreshing.value = true
             viewModelScope.launch {
                 try {
-                    if (refreshSavedPlaces() == RefreshSavedPlaces.Outcome.RetryLater) {
-                        eventChannel.send(PlacesEvent.RefreshFailed)
+                    // Whatever kept one place from updating most likely kept the rest.
+                    refreshSavedPlaces().failures.firstOrNull()?.let {
+                        eventChannel.send(PlacesEvent.RefreshFailed(it.message))
                     }
                 } finally {
                     refreshing.value = false

@@ -26,7 +26,7 @@ class UiModelsTest {
     private val resources = ApplicationProvider.getApplicationContext<Context>().resources
     private val UiText.words get() = asString(resources)
 
-    // The sample forecast at 10 degrees: feels like 8, wind 20; Wednesday -5 to 5
+    // The sample forecast at 0.4 degrees: feels like -1.6, wind 20; Wednesday -5 to 5
     // and overcast, Thursday -4 to 6 with rain at 41%, Friday -3 to 7 with rain at 42%.
     private val metric = ForecastUiModel.from(Samples.forecast(temperature = 0.4), Units.Metric)
 

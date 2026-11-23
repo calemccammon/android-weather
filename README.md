@@ -49,8 +49,8 @@ notifications, and tests that run the whole app on a device.
   is redrawn whenever that changes, and pressing it opens the app.
 - **Severe weather alerts**: turned on from the saved places screen, which
   asks for the notification permission where Android requires it. After each
-  background refresh, a thunderstorm or freezing rain forecast today or
-  tomorrow at a saved place is told once, in a notification that opens the
+  background refresh, a thunderstorm, freezing rain or freezing drizzle
+  forecast today or tomorrow at a saved place is told once, in a notification that opens the
   app on that place.
 - **Celsius or Fahrenheit**, remembered between launches. Forecasts are kept
   in metric and converted on the device, so changing units fetches nothing.
@@ -67,22 +67,30 @@ notifications, and tests that run the whole app on a device.
 The build is split so that what a module may know is decided by what it
 depends on, and checked by the compiler rather than by review.
 
-```
-app ─────────── feature:home ───┐
- │              feature:places ─┼── core:domain ── core:model
- │                              ├── core:ui ────── core:designsystem
- ├── sync, widget ──────────────┘
- ├── core:notifications
- └── core:data ── core:network, core:database, core:datastore
+| Module                              | Depends on                                              |
+| ----------------------------------- | ------------------------------------------------------- |
+| `core:model`, `core:designsystem`   | nothing                                                 |
+| `core:domain`                       | `core:model`                                            |
+| `core:network`, `core:datastore`    | `core:model`                                            |
+| `core:database`                     | nothing                                                 |
+| `core:data`                         | `core:domain`, `core:network`, `core:database`, `core:datastore` |
+| `core:ui`                           | `core:model`, `core:designsystem`                       |
+| `core:notifications`                | `core:domain`, `core:ui`                                |
+| `feature:home`, `feature:places`    | `core:domain`, `core:model`, `core:ui`, `core:designsystem` |
+| `widget`                            | `core:domain`, `core:ui`, `core:designsystem`           |
+| `sync`                              | `core:domain`                                           |
+| `app`                               | both features, `sync`, `widget`, `core:data`, `core:notifications`, `core:domain`, `core:model`, `core:designsystem` |
+| `benchmark`                         | none; it starts `app` from outside                      |
 
-benchmark ── drives app from outside
-```
+Everything that draws or schedules depends on `core:domain` and never on
+`core:data`: the implementations are known only to `app`, which hands them
+over through Hilt.
 
 | Module              | What it holds                                                                                                                                                                                                                                                  |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core:model`        | The app's own types: `Place`, `Forecast`, `WeatherCondition`, `Units`, and the kinds of failure. Plain Kotlin, no Android.                                                                                                                                     |
 | `core:domain`       | The repository interfaces and the use cases that hold the rules: when a forecast is fresh enough not to fetch again, what the background refresh does, which units apply. Plain Kotlin, no Android.                                                             |
-| `core:network`      | Open-Meteo over Retrofit and OkHttp: the wire-shaped models, their translation into the app's types, and every way a request can fail turned into one of six kinds.                                                                                           |
+| `core:network`      | Open-Meteo over Retrofit and OkHttp: the wire-shaped models, their translation into the app's types, and every way a request can fail turned into one of the app's own kinds of failure.                                                                                           |
 | `core:database`     | Room: saved places and the forecasts last fetched. Each version of the schema is committed under `schemas/`.                                                                                                                                                   |
 | `core:datastore`    | The settings file: units and the selected place, as JSON through DataStore. A file that cannot be read is started afresh.                                                                                                                                       |
 | `core:data`         | The repository implementations, and the one Hilt module that says which stands behind each interface. `OfflineFirstForecastRepository` is the centre of it. Device location is here too.                                                                        |
@@ -101,6 +109,10 @@ A feature depends on the domain and the shared UI and nothing else, so it
 cannot name Room, Retrofit or the other feature. The two screens are joined in
 `app`'s `WeatherNavHost`: each says what it needs done, and neither knows the
 other exists.
+
+The view models read through use cases where there is a rule to apply
+(which units, when to fetch again) and write straight to a repository where
+there is none: a use case that only passes a call on is not written.
 
 Each module's build file is a few lines, because what modules have in common
 is in `build-logic`: convention plugins for an Android library, Compose, Hilt,
@@ -128,8 +140,10 @@ screen ◄── view model ◄── ObserveForecast ◄── Room (Flow)
 - The view models keep nothing of their own to show. The selected place and
   the units are settings; the forecast is whatever the database holds. The
   screen is therefore the same after the process is killed.
-- A forecast is fetched again when it is half an hour old, or when asked for
-  outright. A fetch for a place that is no longer selected is cancelled.
+- A forecast is fetched again once it is half an hour old: when its place is
+  selected, each time the home screen comes back into view, and by the
+  background refresh. A fetch for a place that is no longer selected is
+  cancelled.
 - A forecast is filed under its spot on the map, to a hundredth of a degree,
   so a town found by search and the same point picked off the map share one.
 - Forecasts of places looked at in passing are deleted after a day; those of
@@ -166,7 +180,7 @@ The location button needs Google Play services on the device.
 ./gradlew :app:connectedDebugAndroidTest             # the whole app, on a connected device or emulator
 ```
 
-**On the JVM**, 166 tests:
+**On the JVM**, 178 tests:
 
 - **Model and domain**: plain unit tests of the rules, against the stand-ins
   in `core:testing`.
@@ -186,10 +200,13 @@ The location button needs Google Play services on the device.
   each feature's `src/test/snapshots` and compared by Roborazzi.
   `./gradlew recordRoborazziDebug` draws them again after an intended change.
 
-**On a device**, six tests in `app/src/androidTest` run the app as shipped
-from the HTTP client inwards: real screens, view models, Hilt graph, Room
-database and settings file. A stand-in for Open-Meteo runs on the device and
-one small Hilt module points the app at it.
+**On a device**, six tests in `app/src/androidTest` run the real screens,
+view models, Hilt graph, Room database, settings file and HTTP client. Two
+things are swapped: a stand-in for Open-Meteo runs on the device, with one
+small Hilt module pointing the app at it, and Hilt's test application stands
+in for `WeatherApplication`. So what the application class does at launch
+(scheduling the refresh, starting the widget's updater) is not run by any
+test; the schedule and the worker are tested on their own.
 
 - **Journeys**: search, select, drag the sheet up, save, find the place among
   the saved ones, remove it and undo; then reopen with the service down and
@@ -202,9 +219,11 @@ Each device test runs in a fresh process with the app's data cleared.
 
 **Compose stability.** The UI's models are marked `@Immutable`, which the
 compiler takes on trust. `checkComposeStability` reads the compiler's own
-report and fails if any such class holds a field the compiler cannot vouch
-for. Types from outside the app that are known not to change are listed in
-`config/compose-stability.conf`.
+report and fails if a class it treats as stable holds a field it calls
+unstable, or one it can only judge when the app runs, such as a plain `List`.
+So the models hold `ImmutableList`s, and the gaps in a string are a closed
+set of types and not `Any`. Types from outside the app that are known not to
+change are listed in `config/compose-stability.conf`.
 
 **Startup.** `./gradlew :app:generateBaselineProfile` writes the baseline
 profile, committed under `app/src/release/generated` because producing it
@@ -239,8 +258,8 @@ uploads them.
 - **Search needs a connection.** Only forecasts and saved places are kept.
 - **Location needs Google Play services**, and is approximate by design.
 - **Alerts come from the forecast, not from a warning service.** Open-Meteo
-  has no severe weather warnings, so an alert is a forecast of a thunderstorm
-  or freezing rain. They are found when the background refresh runs, which
+  has no severe weather warnings, so an alert is a forecast of a thunderstorm,
+  freezing rain or freezing drizzle. They are found when the background refresh runs, which
   Android may delay.
 - **The widget shows one place**, the one the app shows, and has no picture
   for the conditions.

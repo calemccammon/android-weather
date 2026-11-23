@@ -3,6 +3,7 @@ package com.calemccammon.androidweather.feature.home.model
 import androidx.compose.runtime.Immutable
 import com.calemccammon.androidweather.core.ui.PlaceUiModel
 import com.calemccammon.androidweather.core.ui.UiText
+import kotlinx.collections.immutable.ImmutableList
 
 /** What the open search bar is showing under itself. */
 @Immutable
@@ -17,7 +18,7 @@ sealed interface SearchState {
 
     data class Results(
         val query: String,
-        val places: List<PlaceUiModel>,
+        val places: ImmutableList<PlaceUiModel>,
     ) : SearchState
 
     data class Empty(

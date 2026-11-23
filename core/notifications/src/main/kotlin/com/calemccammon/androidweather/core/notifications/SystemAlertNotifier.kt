@@ -31,13 +31,14 @@ internal class SystemAlertNotifier
         // system says whether it will show the app's notifications, which is
         // false without the permission, so that one question is asked instead.
         @SuppressLint("MissingPermission")
-        override fun show(alerts: List<WeatherAlert>) {
-            if (alerts.isEmpty() || !manager.areNotificationsEnabled()) return
-            createChannel()
+        override fun show(alerts: List<WeatherAlert>): Boolean {
+            if (!manager.areNotificationsEnabled()) return false
+            if (alerts.isNotEmpty()) createChannel()
             for (alert in alerts) {
                 // The same alert shown again replaces itself.
                 manager.notify(alert.id.hashCode(), notification(alert))
             }
+            return true
         }
 
         /** Makes the channel if it is not there. Making it again changes nothing. */
@@ -71,14 +72,14 @@ internal class SystemAlertNotifier
                 .setAutoCancel(true)
                 .build()
 
-        /** Opens the app, telling it which saved place to show. */
+        /** Opens the app, telling it which place to show. */
         private fun openPlace(alert: WeatherAlert): PendingIntent? {
             val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
-            launch.putExtra(AlertIntents.EXTRA_SAVED_PLACE_ID, alert.savedPlaceId)
+            AlertIntents.put(launch, alert.place)
             return PendingIntent.getActivity(
                 context,
                 // One pending intent per place; a later alert for the place updates it.
-                alert.savedPlaceId.hashCode(),
+                (alert.place.latitude to alert.place.longitude).hashCode(),
                 launch,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )

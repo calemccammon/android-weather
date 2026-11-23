@@ -9,6 +9,8 @@ import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.ui.PlaceUiModel
 import com.calemccammon.androidweather.core.ui.UiText
 import com.calemccammon.androidweather.core.ui.label
+import com.calemccammon.androidweather.core.ui.spokenTemperature
+import com.calemccammon.androidweather.core.ui.temperature
 import com.calemccammon.androidweather.core.ui.uiText
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +21,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import kotlin.math.roundToInt
-import com.calemccammon.androidweather.core.ui.R as CoreR
 
 /** What the widget is showing. */
 sealed interface WidgetState {
@@ -77,21 +78,15 @@ class ObserveWidgetState
             if (forecast == null) return WidgetState.Waiting(title)
 
             val degrees = forecast.current.temperature.roundToInt()
-            val (shown, spoken) =
-                when (units) {
-                    Units.Metric -> CoreR.string.core_ui_temperature_celsius to CoreR.plurals.core_ui_spoken_celsius
-                    Units.Imperial ->
-                        CoreR.string.core_ui_temperature_fahrenheit to CoreR.plurals.core_ui_spoken_fahrenheit
-                }
             val condition = forecast.current.condition.label
             val today = forecast.days.firstOrNull(forecast::isToday)
 
             return WidgetState.Weather(
                 place = title,
-                temperature = uiText(shown, degrees),
+                temperature = units.temperature(degrees),
                 condition = condition,
                 range = today?.let { uiText(R.string.widget_range, it.low.roundToInt(), it.high.roundToInt()) },
-                spoken = uiText(R.string.widget_spoken, title, condition, UiText.Plural(spoken, degrees)),
+                spoken = uiText(R.string.widget_spoken, title, condition, units.spokenTemperature(degrees)),
             )
         }
     }

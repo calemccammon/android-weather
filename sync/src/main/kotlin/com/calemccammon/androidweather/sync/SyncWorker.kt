@@ -4,9 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.calemccammon.androidweather.core.domain.repository.AlertNotifier
-import com.calemccammon.androidweather.core.domain.usecase.FindNewWeatherAlerts
 import com.calemccammon.androidweather.core.domain.usecase.RefreshSavedPlaces
+import com.calemccammon.androidweather.core.domain.usecase.TellNewWeatherAlerts
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -25,21 +24,20 @@ internal class SyncWorker
         @Assisted context: Context,
         @Assisted parameters: WorkerParameters,
         private val refreshSavedPlaces: RefreshSavedPlaces,
-        private val findNewWeatherAlerts: FindNewWeatherAlerts,
-        private val notifier: AlertNotifier,
+        private val tellNewWeatherAlerts: TellNewWeatherAlerts,
     ) : CoroutineWorker(context, parameters) {
         override suspend fun doWork(): Result {
             val outcome = refreshSavedPlaces()
             // Whatever was fetched, even if some places failed, is looked
             // through for severe weather the user has asked to be told of.
-            notifier.show(findNewWeatherAlerts())
+            tellNewWeatherAlerts()
 
-            return when (outcome) {
-                RefreshSavedPlaces.Outcome.Done -> Result.success()
+            return when {
+                !outcome.isWorthRetrying -> Result.success()
                 // Tried again sooner than the next scheduled run, a few times;
                 // after that the next scheduled run is soon enough.
-                RefreshSavedPlaces.Outcome.RetryLater ->
-                    if (runAttemptCount < MAX_RETRIES) Result.retry() else Result.failure()
+                runAttemptCount < MAX_RETRIES -> Result.retry()
+                else -> Result.failure()
             }
         }
 

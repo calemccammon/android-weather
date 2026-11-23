@@ -118,7 +118,12 @@ class OfflineFirstRepositoriesTest {
             forecasts.observe(Samples.asheville).test {
                 awaitItem()
                 forecasts.refresh(Samples.lisbon)
-                expectNoEvents()
+                // The database tells its watchers a moment after a write, so
+                // "nothing came" is shown by what comes next: after a change
+                // to this place, the very next thing heard is that change.
+                network.forecast = Samples.forecast(temperature = 30.0)
+                forecasts.refresh(Samples.asheville)
+                assertEquals(30.0, awaitItem()?.forecast?.current?.temperature)
             }
         }
 
@@ -155,6 +160,20 @@ class OfflineFirstRepositoriesTest {
             assertEquals(Samples.forecast(), forecasts.observe(Samples.asheville).first()?.forecast)
             assertNull(forecasts.observe(Samples.lisbon).first())
             assertEquals(Samples.forecast(), forecasts.observe(Samples.point).first()?.forecast)
+        }
+
+    @Test
+    fun `pruning keeps the places it is told to, however old and whether saved or not`() =
+        runTest {
+            forecasts.refresh(Samples.lisbon)
+            forecasts.refresh(Samples.point)
+            clock.advance(Duration.ofDays(5))
+
+            // The same spot under another name is the same place.
+            forecasts.prune(before = clock.now, keep = listOf(Samples.lisbon.copy(name = null)))
+
+            assertEquals(Samples.forecast(), forecasts.observe(Samples.lisbon).first()?.forecast)
+            assertNull(forecasts.observe(Samples.point).first())
         }
 
     @Test

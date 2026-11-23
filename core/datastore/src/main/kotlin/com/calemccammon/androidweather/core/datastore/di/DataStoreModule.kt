@@ -12,6 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -25,7 +26,7 @@ internal object DataStoreModule {
 }
 
 /** The settings store over the file [produceFile] names. A file that cannot be read is started afresh. */
-fun settingsStore(produceFile: () -> java.io.File): DataStore<StoredSettings> =
+fun settingsStore(produceFile: () -> File): DataStore<StoredSettings> =
     DataStoreFactory.create(
         serializer = StoredSettingsSerializer,
         corruptionHandler = ReplaceFileCorruptionHandler { StoredSettings() },

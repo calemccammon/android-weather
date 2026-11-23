@@ -1,5 +1,6 @@
 package com.calemccammon.androidweather.core.domain.usecase
 
+import com.calemccammon.androidweather.core.domain.repository.AlertNotifier
 import com.calemccammon.androidweather.core.domain.repository.ForecastRepository
 import com.calemccammon.androidweather.core.domain.repository.SavedPlacesRepository
 import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
@@ -10,31 +11,37 @@ import javax.inject.Inject
 
 /**
  * Looks through the forecasts held for the saved places for severe weather
- * the user has not been told of yet.
+ * the user has not been told of yet, and tells them.
  */
-class FindNewWeatherAlerts
+class TellNewWeatherAlerts
     @Inject
     constructor(
         private val places: SavedPlacesRepository,
         private val forecasts: ForecastRepository,
         private val settings: SettingsRepository,
+        private val notifier: AlertNotifier,
     ) {
         /**
-         * Severe weather today or tomorrow at each saved place, less what has
-         * been told already. Empty when the user has not asked for alerts.
+         * Tells of severe weather today or tomorrow at each saved place, less
+         * what has been told already. Does nothing when the user has not asked
+         * for alerts. Returns what was told.
          *
-         * What it returns is recorded as told, so calling it again returns
-         * nothing until the forecasts change.
+         * An alert is recorded as told only once it has been shown. If the
+         * system would not show it, it is still new the next time.
          */
         suspend operator fun invoke(): List<WeatherAlert> {
             val current = settings.settings.first()
             if (!current.alertsEnabled) return emptyList()
 
             val standing = places.places.first().flatMap { alertsAt(it) }
+            val new = standing.filterNot { it.id in current.notifiedAlerts }
+            val shown = new.isEmpty() || notifier.show(new)
+
             // Only alerts still in the forecast are remembered, so the record
             // does not grow: yesterday's drop out by themselves.
-            settings.setNotifiedAlerts(standing.map { it.id }.toSet())
-            return standing.filterNot { it.id in current.notifiedAlerts }
+            val told = standing.map { it.id }.filter { shown || it in current.notifiedAlerts }
+            settings.setNotifiedAlerts(told.toSet())
+            return if (shown) new else emptyList()
         }
 
         private suspend fun alertsAt(saved: SavedPlace): List<WeatherAlert> {
@@ -43,6 +50,6 @@ class FindNewWeatherAlerts
             val today = forecast.current.observedAt.toLocalDate()
             return forecast.days
                 .filter { it.condition.isSevere && (it.date == today || it.date == today.plusDays(1)) }
-                .map { WeatherAlert(saved.id, saved.place, it.date, it.condition, isToday = it.date == today) }
+                .map { WeatherAlert(saved.place, it.date, it.condition, isToday = it.date == today) }
         }
     }

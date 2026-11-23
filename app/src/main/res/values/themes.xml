@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What the window looks like before Compose draws: the theme's own
+         background, light or dark as the system is, so the app does not
+         flash white when it starts in the dark. Everything after that is
+         themed in Compose. -->
+    <style name="Theme.Weather" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>
