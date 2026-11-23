@@ -6,6 +6,9 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.platform.LocalResources
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 
 /**
  * Wording the view models choose and the screen looks up.
@@ -22,12 +25,12 @@ sealed interface UiText {
     ) : UiText
 
     /**
-     * A string from a module's `strings.xml`, with [arguments] for its gaps:
-     * text, whole numbers, or more [UiText].
+     * A string from a module's `strings.xml`, with [arguments] for its gaps.
+     * Made with [uiText].
      */
     data class Resource(
         @param:StringRes val id: Int,
-        val arguments: List<Any> = emptyList(),
+        val arguments: ImmutableList<Argument> = persistentListOf(),
     ) : UiText
 
     /** A string whose wording depends on [quantity], which is also its first argument. */
@@ -37,10 +40,43 @@ sealed interface UiText {
     ) : UiText
 }
 
+/**
+ * What can fill a gap in a string: text, a whole number, or more [UiText],
+ * which is looked up in turn. A closed set, so that wording stays a plain
+ * value two of which can be compared.
+ */
+@Immutable
+sealed interface Argument {
+    data class Word(
+        val word: String,
+    ) : Argument
+
+    data class Number(
+        val number: Int,
+    ) : Argument
+
+    data class Text(
+        val text: UiText,
+    ) : Argument
+}
+
+/** The string [id] with [arguments] for its gaps: text, whole numbers, or more [UiText]. */
 fun uiText(
     @StringRes id: Int,
     vararg arguments: Any,
-): UiText = UiText.Resource(id, arguments.toList())
+): UiText =
+    UiText.Resource(
+        id,
+        arguments
+            .map {
+                when (it) {
+                    is UiText -> Argument.Text(it)
+                    is String -> Argument.Word(it)
+                    is Int -> Argument.Number(it)
+                    else -> throw IllegalArgumentException("A string's gap cannot be filled with ${it::class}")
+                }
+            }.toImmutableList(),
+    )
 
 /** The words, in the device's language. */
 @Composable
@@ -52,6 +88,16 @@ fun UiText.asString(resources: Resources): String =
     when (this) {
         is UiText.Verbatim -> text
         is UiText.Resource ->
-            resources.getString(id, *arguments.map { if (it is UiText) it.asString(resources) else it }.toTypedArray())
+            resources.getString(
+                id,
+                *arguments
+                    .map<Argument, Any> {
+                        when (it) {
+                            is Argument.Word -> it.word
+                            is Argument.Number -> it.number
+                            is Argument.Text -> it.text.asString(resources)
+                        }
+                    }.toTypedArray(),
+            )
         is UiText.Plural -> resources.getQuantityString(id, quantity, quantity)
     }

@@ -30,12 +30,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 /**
@@ -117,9 +119,7 @@ class HomeViewModel
             viewModelScope.launch {
                 try {
                     val place = location.currentPlace()
-                    if (place ==
-                        null
-                    ) {
+                    if (place == null) {
                         eventChannel.send(HomeEvent.LocationUnavailable)
                     } else {
                         settings.setSelectedPlace(place)
@@ -149,6 +149,15 @@ class HomeViewModel
         /** Fetches the selected place's forecast again, however fresh the one held is. */
         fun retryForecast() = fetch(force = true)
 
+        /**
+         * Brings the selected place's forecast up to date if it has grown old.
+         * The screen calls this each time it comes back into view: the app may
+         * have been in the background for hours.
+         */
+        fun refreshIfStale() {
+            if (fetching?.isActive != true) fetch(force = false)
+        }
+
         private fun fetch(force: Boolean) {
             // A fetch for a place no longer selected is given up.
             fetching?.cancel()
@@ -161,7 +170,11 @@ class HomeViewModel
                             refreshForecast(place, force)
                             Fetch(place)
                         } catch (e: WeatherException) {
-                            Fetch(place, failure = e.failure)
+                            // Which forecast was on screen when this failed, so
+                            // the failure is not told against a newer one that
+                            // the background refresh brings later.
+                            val held = observeForecast(place, Units.Metric).first()?.fetchedAt
+                            Fetch(place, failure = e.failure, heldAt = held)
                         }
                 }
         }
@@ -193,7 +206,7 @@ class HomeViewModel
                         forecast = ForecastUiModel.from(cached.forecast, units),
                         fetchedAt = cached.fetchedAt,
                         refreshing = fetch?.running == true,
-                        problem = fetch?.failure?.message,
+                        problem = fetch?.failure?.takeIf { fetch.heldAt == cached.fetchedAt }?.message,
                     )
                 fetch?.failure != null -> ForecastState.Failed(fetch.failure.message)
                 else -> ForecastState.Loading
@@ -204,6 +217,8 @@ class HomeViewModel
             val place: Place,
             val running: Boolean = false,
             val failure: WeatherFailure? = null,
+            /** When the forecast held at the time of [failure] was fetched; null if none was held. */
+            val heldAt: Instant? = null,
         )
 
         private companion object {

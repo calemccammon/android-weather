@@ -9,6 +9,7 @@ import com.calemccammon.androidweather.core.ui.PlaceUiModel
 import com.calemccammon.androidweather.core.ui.message
 import com.calemccammon.androidweather.feature.home.model.SearchState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,7 +56,7 @@ class SearchViewModel
             mutableState.value = SearchState.Loading(query)
             searching =
                 viewModelScope.launch {
-                    delay(debounce)
+                    delay(DEBOUNCE)
                     search(query)
                 }
         }
@@ -91,7 +92,7 @@ class SearchViewModel
                     if (places.isEmpty()) {
                         SearchState.Empty(query)
                     } else {
-                        SearchState.Results(query, places.map(PlaceUiModel::from))
+                        SearchState.Results(query, places.map(PlaceUiModel::from).toImmutableList())
                     }
                 } catch (e: WeatherException) {
                     SearchState.Failed(query, e.failure.message)
@@ -100,6 +101,6 @@ class SearchViewModel
 
         companion object {
             /** How long typing must pause before a search is sent. */
-            val debounce = 350.milliseconds
+            val DEBOUNCE = 350.milliseconds
         }
     }

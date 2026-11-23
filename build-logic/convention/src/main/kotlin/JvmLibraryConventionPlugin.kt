@@ -7,7 +7,7 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.kotlin.dsl.configure
 
-/** A plain Kotlin module with no Android in it: the model and the domain. */
+/** A plain Kotlin module with no Android in it: the model, the domain and what their tests share. */
 class JvmLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) =
         with(target) {

@@ -97,7 +97,7 @@ internal class OpenMeteoNetworkDataSource(
 
     companion object {
         /** How long to wait for an answer before giving up. */
-        val defaultTimeout: Duration = Duration.ofSeconds(15)
+        val DEFAULT_TIMEOUT: Duration = Duration.ofSeconds(15)
 
         private const val MAX_RESULTS = 8
         private const val FORECAST_DAYS = 7
@@ -107,7 +107,7 @@ internal class OpenMeteoNetworkDataSource(
         private val json = Json { ignoreUnknownKeys = true }
 
         /** The HTTP client the service is asked through: one that gives up after [timeout]. */
-        fun httpClient(timeout: Duration = defaultTimeout): OkHttpClient =
+        fun httpClient(timeout: Duration = DEFAULT_TIMEOUT): OkHttpClient =
             OkHttpClient
                 .Builder()
                 .callTimeout(timeout)

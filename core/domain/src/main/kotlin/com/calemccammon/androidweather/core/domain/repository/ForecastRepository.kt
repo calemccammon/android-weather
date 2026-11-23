@@ -25,8 +25,12 @@ interface ForecastRepository {
     suspend fun refresh(place: Place)
 
     /**
-     * Forgets forecasts fetched before [before] for places that are not
-     * saved, so looking at places in passing does not fill the device.
+     * Forgets forecasts fetched before [before], so looking at places in
+     * passing does not fill the device. Those of saved places are kept, and
+     * so are those of [keep].
      */
-    suspend fun prune(before: Instant)
+    suspend fun prune(
+        before: Instant,
+        keep: Collection<Place> = emptyList(),
+    )
 }

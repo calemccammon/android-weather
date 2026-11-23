@@ -18,14 +18,6 @@ ij_kotlin_name_count_to_use_star_import = 2147483647
 ij_kotlin_name_count_to_use_star_import_for_members = 2147483647
 ij_kotlin_packages_to_use_import_on_demand = unset
 
-# The iOS entry point is a function named like the UIKit class it returns.
-[**/MainViewController.kt]
-ktlint_standard_function-naming = disabled
-
-# Entry-point files are conventionally named main.kt.
-[**/main.kt]
-ktlint_standard_filename = disabled
-
-# Generated code (Compose resources and the like).
+# Generated code.
 [**/build/**/*.kt]
 ktlint = disabled

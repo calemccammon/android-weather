@@ -4,6 +4,7 @@ import com.calemccammon.androidweather.core.domain.repository.ForecastRepository
 import com.calemccammon.androidweather.core.domain.repository.SavedPlacesRepository
 import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
 import com.calemccammon.androidweather.core.model.WeatherException
+import com.calemccammon.androidweather.core.model.WeatherFailure
 import kotlinx.coroutines.flow.first
 import java.time.Clock
 import java.time.Duration
@@ -22,31 +23,34 @@ class RefreshSavedPlaces
         private val clock: Clock,
     ) {
         /**
-         * One place failing does not stop the rest; the outcome says whether
-         * running again later is worth it. Forecasts of places looked at in
-         * passing are forgotten after [KEEP_UNSAVED_FOR].
+         * One place failing does not stop the rest; the outcome says what
+         * failed. Forecasts of places looked at in passing are forgotten after
+         * [KEEP_UNSAVED_FOR], but never that of the selected place, however
+         * old: with no connection it is all there is to show.
          */
         suspend operator fun invoke(): Outcome {
-            var worthRetrying = false
-            val kept = places.places.first().map { it.place } + listOfNotNull(settings.settings.first().selectedPlace)
+            val selected = settings.settings.first().selectedPlace
+            val kept = places.places.first().map { it.place } + listOfNotNull(selected)
+            val failures = mutableListOf<WeatherFailure>()
             // The selected place is often a saved one too.
             for (place in kept.distinctBy { it.latitude to it.longitude }) {
                 try {
                     forecasts.refresh(place)
                 } catch (e: WeatherException) {
-                    if (e.failure.isTemporary) worthRetrying = true
+                    failures += e.failure
                 }
             }
-            forecasts.prune(before = clock.instant() - KEEP_UNSAVED_FOR)
-            return if (worthRetrying) Outcome.RetryLater else Outcome.Done
+            forecasts.prune(before = clock.instant() - KEEP_UNSAVED_FOR, keep = listOfNotNull(selected))
+            return Outcome(failures)
         }
 
-        enum class Outcome {
-            /** Every place was refreshed, or failed in a way that waiting will not mend. */
-            Done,
-
-            /** At least one place failed in a way that may pass, such as no connection. */
-            RetryLater,
+        /** How a refresh went: the failure of each place that could not be fetched. */
+        data class Outcome(
+            val failures: List<WeatherFailure> = emptyList(),
+        ) {
+            /** Whether at least one place failed in a way that may pass, such as no connection. */
+            val isWorthRetrying: Boolean
+                get() = failures.any { it.isTemporary }
         }
 
         companion object {

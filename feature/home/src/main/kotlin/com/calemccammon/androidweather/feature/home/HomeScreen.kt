@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calemccammon.androidweather.core.designsystem.Breakpoints
 import com.calemccammon.androidweather.core.designsystem.IconSizes
@@ -116,6 +117,11 @@ fun HomeRoute(
         }
     }
 
+    // Each time the screen comes back into view, not only when it is first made.
+    LifecycleResumeEffect(homeViewModel) {
+        homeViewModel.refreshIfStale()
+        onPauseOrDispose {}
+    }
     val snackbars = remember { SnackbarHostState() }
     val onMyLocation = rememberMyLocationAction(snackbars, homeViewModel::selectCurrentLocation)
     val locationUnavailable = stringResource(R.string.feature_home_location_unavailable)

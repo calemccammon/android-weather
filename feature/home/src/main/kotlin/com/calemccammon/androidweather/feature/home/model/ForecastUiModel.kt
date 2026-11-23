@@ -9,8 +9,13 @@ import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.ui.UiText
 import com.calemccammon.androidweather.core.ui.icon
 import com.calemccammon.androidweather.core.ui.label
+import com.calemccammon.androidweather.core.ui.speed
+import com.calemccammon.androidweather.core.ui.spokenTemperature
+import com.calemccammon.androidweather.core.ui.temperature
 import com.calemccammon.androidweather.core.ui.uiText
 import com.calemccammon.androidweather.feature.home.R
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import java.time.DayOfWeek
 import kotlin.math.roundToInt
 import com.calemccammon.androidweather.core.ui.R as CoreR
@@ -22,7 +27,7 @@ import com.calemccammon.androidweather.core.ui.R as CoreR
 @Immutable
 data class ForecastUiModel(
     val current: CurrentUiModel,
-    val days: List<DayUiModel>,
+    val days: ImmutableList<DayUiModel>,
 ) {
     companion object {
         /** Translates a domain [Forecast] for display in [units]. */
@@ -36,7 +41,10 @@ data class ForecastUiModel(
 
             return ForecastUiModel(
                 current = CurrentUiModel.from(forecast.current, units),
-                days = forecast.days.map { DayUiModel.from(it, forecast.isToday(it), weekLow, weekHigh) },
+                days =
+                    forecast.days
+                        .map { DayUiModel.from(it, forecast.isToday(it), weekLow, weekHigh) }
+                        .toImmutableList(),
             )
         }
     }
@@ -65,30 +73,23 @@ data class CurrentUiModel(
             val temperature = current.temperature.roundToInt()
             val feelsLike = current.feelsLike.roundToInt()
             val wind = current.windSpeed.roundToInt()
-            val (shown, spoken, speed) =
-                when (units) {
-                    Units.Metric ->
-                        Triple(
-                            uiText(CoreR.string.core_ui_temperature_celsius, temperature),
-                            UiText.Plural(CoreR.plurals.core_ui_spoken_celsius, temperature),
-                            uiText(CoreR.string.core_ui_speed_kmh, wind),
-                        )
-                    Units.Imperial ->
-                        Triple(
-                            uiText(CoreR.string.core_ui_temperature_fahrenheit, temperature),
-                            UiText.Plural(CoreR.plurals.core_ui_spoken_fahrenheit, temperature),
-                            uiText(CoreR.string.core_ui_speed_mph, wind),
-                        )
-                }
+            val speed = units.speed(wind)
             val condition = current.condition.label
 
             return CurrentUiModel(
                 icon = current.condition.icon(isDay = current.isDay),
-                temperature = shown,
+                temperature = units.temperature(temperature),
                 condition = condition,
                 feelsLike = uiText(R.string.feature_home_feels_like, feelsLike),
                 wind = uiText(R.string.feature_home_wind, speed),
-                description = uiText(R.string.feature_home_current_description, condition, spoken, feelsLike, speed),
+                description =
+                    uiText(
+                        R.string.feature_home_current_description,
+                        condition,
+                        units.spokenTemperature(temperature),
+                        feelsLike,
+                        speed,
+                    ),
             )
         }
     }

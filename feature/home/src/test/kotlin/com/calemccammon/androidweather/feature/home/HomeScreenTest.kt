@@ -31,6 +31,7 @@ import com.calemccammon.androidweather.feature.home.model.ForecastUiModel
 import com.calemccammon.androidweather.feature.home.model.HomeState
 import com.calemccammon.androidweather.feature.home.model.SearchState
 import com.calemccammon.androidweather.feature.home.model.UnitsUiModel
+import kotlinx.collections.immutable.persistentListOf
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -241,7 +242,7 @@ class HomeScreenTest {
         compose.waitForIdle()
         assertEquals("query:ash", asked.last())
 
-        search = SearchState.Results("ash", listOf(asheville, PlaceUiModel.from(Samples.lisbon)))
+        search = SearchState.Results("ash", persistentListOf(asheville, PlaceUiModel.from(Samples.lisbon)))
         compose.onNodeWithText("Lisbon, Portugal").assertIsDisplayed()
         compose.onNodeWithText("Asheville").performClick()
 

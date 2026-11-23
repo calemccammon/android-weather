@@ -34,6 +34,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun open(intent: Intent?) {
-        AlertIntents.savedPlaceId(intent)?.let(viewModel::openSavedPlace)
+        // Coming back through Recents hands over the intent the task began
+        // with. An alert pressed then is not pressed again now.
+        val fromRecents = intent != null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+        if (fromRecents) return
+        AlertIntents.coordinates(intent)?.let { (latitude, longitude) ->
+            viewModel.openSavedPlaceAt(latitude, longitude)
+        }
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -179,7 +180,7 @@ private fun titleStyle() =
 private fun bodyStyle() = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp)
 
 @Composable
-private fun temperatureStyle(size: androidx.compose.ui.unit.TextUnit) =
+private fun temperatureStyle(size: TextUnit) =
     TextStyle(color = GlanceTheme.colors.onSurface, fontSize = size, fontWeight = FontWeight.Medium)
 
 private val cornerRadius = 24.dp

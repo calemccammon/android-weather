@@ -1,5 +1,7 @@
 package com.calemccammon.androidweather.core.model
 
+import kotlin.math.abs
+
 /** A point on the map. */
 data class Place(
     val latitude: Double,
@@ -12,7 +14,7 @@ data class Place(
 ) {
     /** Whether this is a point on the globe at all. Written so that a NaN is not. */
     val isOnGlobe: Boolean
-        get() = kotlin.math.abs(latitude) <= MAX_LATITUDE && longitude.isFinite()
+        get() = abs(latitude) <= MAX_LATITUDE && longitude.isFinite()
 
     companion object {
         private const val MAX_LATITUDE = 90.0

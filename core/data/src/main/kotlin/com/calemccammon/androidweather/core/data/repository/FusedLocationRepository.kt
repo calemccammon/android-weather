@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.calemccammon.androidweather.core.domain.repository.LocationRepository
 import com.calemccammon.androidweather.core.model.Place
@@ -41,8 +42,9 @@ internal class FusedLocationRepository
             if (!allowed) return null
 
             // A fresh fix if one comes in time; failing that, wherever the device
-            // last knew itself to be, which indoors is often all there is.
-            val location = fresh() ?: client.lastLocation.awaitOrNull()
+            // last knew itself to be, which indoors is often all there is, as
+            // long as that was not so long ago that it may be somewhere else.
+            val location = fresh() ?: client.lastLocation.awaitOrNull()?.takeIf { it.isRecent() }
             return location?.let { Place.fromCoordinates(it.latitude, it.longitude) }
         }
 
@@ -58,10 +60,17 @@ internal class FusedLocationRepository
             suspendCancellableCoroutine { continuation ->
                 addOnSuccessListener { continuation.resume(it) }
                 addOnFailureListener { continuation.resume(null) }
+                addOnCanceledListener { continuation.resume(null) }
                 continuation.invokeOnCancellation { onCancel() }
             }
 
+        private fun Location.isRecent(): Boolean =
+            SystemClock.elapsedRealtimeNanos() - elapsedRealtimeNanos < LAST_KNOWN_FOR.toNanos()
+
         private companion object {
+            /** How old the last known position may be and still count as where the device is. */
+            val LAST_KNOWN_FOR: Duration = Duration.ofHours(2)
+
             val request: CurrentLocationRequest =
                 CurrentLocationRequest
                     .Builder()

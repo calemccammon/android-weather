@@ -5,7 +5,9 @@ import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.model.UserSettings
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import javax.inject.Inject
 
 /** The settings file, read and written in the app's own terms. */
@@ -14,7 +16,12 @@ class SettingsDataSource
     constructor(
         private val store: DataStore<StoredSettings>,
     ) {
-        val settings: Flow<UserSettings> = store.data.map { it.toModel() }
+        val settings: Flow<UserSettings> =
+            store.data
+                // A file that cannot be read just now reads as nothing chosen,
+                // which the app can show; anything else is a fault to hear of.
+                .catch { if (it is IOException) emit(StoredSettings()) else throw it }
+                .map { it.toModel() }
 
         suspend fun setUnits(units: Units) {
             val word =

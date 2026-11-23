@@ -1,4 +1,6 @@
 <resources>
     <!-- The seed colour of the app's theme. -->
     <color name="ic_launcher_background">#2E6FB7</color>
+    <!-- The theme's background colour, as in core:designsystem. -->
+    <color name="window_background">#F8F9FF</color>
 </resources>

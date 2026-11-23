@@ -47,26 +47,24 @@ dependencies {
     implementation(projects.core.data)
     implementation(projects.core.designsystem)
     implementation(projects.core.domain)
+    implementation(projects.core.model)
     implementation(projects.core.notifications)
     implementation(projects.sync)
     implementation(projects.widget)
 
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.hilt.work)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     // Installs the baseline profile where the store that delivered the app does not.
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.work.runtime)
-    ksp(libs.androidx.hilt.compiler)
 
     // Where the baseline profile is generated: see the benchmark module.
     baselineProfile(projects.benchmark)
 
+    testImplementation(projects.core.testing)
+
     // Tests of the whole app on a device.
-    androidTestImplementation(projects.core.domain)
-    androidTestImplementation(projects.core.model)
     androidTestImplementation(projects.core.network)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)

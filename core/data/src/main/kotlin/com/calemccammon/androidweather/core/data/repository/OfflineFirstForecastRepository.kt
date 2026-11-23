@@ -43,7 +43,10 @@ internal class OfflineFirstForecastRepository
             dao.replace(forecast.toEntity(place.key, fetchedAt = clock.instant()), forecast.toDayEntities(place.key))
         }
 
-        override suspend fun prune(before: Instant) {
-            dao.deleteUnsavedFetchedBefore(before)
+        override suspend fun prune(
+            before: Instant,
+            keep: Collection<Place>,
+        ) {
+            dao.deleteUnsavedFetchedBefore(before, keep.map { it.key })
         }
     }

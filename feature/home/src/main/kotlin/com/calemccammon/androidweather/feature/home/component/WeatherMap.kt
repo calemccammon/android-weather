@@ -36,8 +36,7 @@ import org.maplibre.spatialk.geojson.Position
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The map behind everything else. A press-and-hold, or a click of the
- * mouse's second button, picks the point under it.
+ * The map behind everything else. A press-and-hold picks the point under it.
  *
  * [covered] is how much of each edge the search bar and the forecast cover.
  * The pin is brought to the middle of what is left, and the map's credit is

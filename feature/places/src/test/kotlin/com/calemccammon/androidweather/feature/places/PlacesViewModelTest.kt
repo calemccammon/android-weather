@@ -124,24 +124,43 @@ class PlacesViewModelTest {
         }
 
     @Test
-    fun `removing a row is told once and can be undone`() =
+    fun `removing a row is told once and can be undone once`() =
         watching {
             val asheville = shown().places[0].id
 
             viewModel.events.test {
                 viewModel.remove(asheville)
 
-                assertEquals("Asheville", assertIs<PlacesEvent.Removed>(awaitItem()).title.words)
+                val removed = assertIs<PlacesEvent.Removed>(awaitItem())
+                assertEquals("Asheville", removed.title.words)
+                assertEquals(listOf("Lisbon"), shown().places.map { it.place.title.words })
+
+                viewModel.undoRemove(removed.removal)
+                assertEquals(listOf("Lisbon", "Asheville"), shown().places.map { it.place.title.words })
+
+                // The same removal cannot be undone twice.
+                viewModel.undoRemove(removed.removal)
+                assertEquals(2, shown().places.size)
             }
-            assertEquals(listOf("Lisbon"), shown().places.map { it.place.title.words })
+        }
 
-            viewModel.undoRemove()
+    @Test
+    fun `with two places removed, undoing the first puts the first back`() =
+        watching {
+            val (asheville, lisbon) = shown().places.map { it.id }
 
-            assertEquals(listOf("Lisbon", "Asheville"), shown().places.map { it.place.title.words })
+            viewModel.events.test {
+                viewModel.remove(asheville)
+                val first = assertIs<PlacesEvent.Removed>(awaitItem())
+                viewModel.remove(lisbon)
+                val second = assertIs<PlacesEvent.Removed>(awaitItem())
 
-            // There is nothing more to undo.
-            viewModel.undoRemove()
-            assertEquals(2, shown().places.size)
+                viewModel.undoRemove(first.removal)
+                assertEquals(listOf("Asheville"), shown().places.map { it.place.title.words })
+
+                viewModel.undoRemove(second.removal)
+                assertEquals(listOf("Asheville", "Lisbon"), shown().places.map { it.place.title.words })
+            }
         }
 
     @Test
@@ -176,7 +195,7 @@ class PlacesViewModelTest {
         }
 
     @Test
-    fun `a refresh that could not reach the service is told once`() =
+    fun `a refresh that failed is told once, with why`() =
         watching {
             shown()
             forecasts.failure = WeatherFailure.NoConnection
@@ -184,9 +203,24 @@ class PlacesViewModelTest {
             viewModel.events.test {
                 viewModel.refresh()
 
-                assertEquals(PlacesEvent.RefreshFailed, awaitItem())
+                val failed = assertIs<PlacesEvent.RefreshFailed>(awaitItem())
+                assertEquals("Could not reach the weather service. Check your connection.", failed.reason.words)
             }
             assertEquals(false, shown().refreshing)
+        }
+
+    @Test
+    fun `a failure that waiting will not mend is told too, and not blamed on the connection`() =
+        watching {
+            shown()
+            forecasts.failure = WeatherFailure.BadResponse
+
+            viewModel.events.test {
+                viewModel.refresh()
+
+                val failed = assertIs<PlacesEvent.RefreshFailed>(awaitItem())
+                assertEquals("The weather service sent an answer this app could not read.", failed.reason.words)
+            }
         }
 
     @Test

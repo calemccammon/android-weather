@@ -9,7 +9,7 @@ class HiltConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) =
         with(target) {
             pluginManager.apply("com.google.devtools.ksp")
-            pluginManager.apply("dagger.hilt.android.plugin")
+            pluginManager.apply("com.google.dagger.hilt.android")
 
             dependencies {
                 "implementation"(libs.library("hilt-android"))

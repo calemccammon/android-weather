@@ -18,12 +18,19 @@ class MainViewModel
         private val settings: SettingsRepository,
     ) : ViewModel() {
         /**
-         * Makes the saved place numbered [id] the one the home screen shows, as
-         * when an alert about it is pressed. A place removed since is ignored.
+         * Makes the saved place at these coordinates the one the home screen
+         * shows, as when an alert about it is pressed. A place removed since
+         * is ignored.
          */
-        fun openSavedPlace(id: Long) {
+        fun openSavedPlaceAt(
+            latitude: Double,
+            longitude: Double,
+        ) {
             viewModelScope.launch {
-                val saved = savedPlaces.places.first().firstOrNull { it.id == id } ?: return@launch
+                val saved =
+                    savedPlaces.places.first().firstOrNull {
+                        it.place.latitude == latitude && it.place.longitude == longitude
+                    } ?: return@launch
                 settings.setSelectedPlace(saved.place)
             }
         }

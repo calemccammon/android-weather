@@ -212,6 +212,54 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun `word of a failed fetch goes once a newer forecast arrives another way`() =
+        watching {
+            forecasts.hold(Samples.asheville, Samples.forecast(temperature = 5.0))
+            clock.advance(Duration.ofHours(2))
+            forecasts.failure = WeatherFailure.NoConnection
+            viewModel.select(Samples.asheville)
+            assertEquals(true, assertIs<ForecastState.Loaded>(shown().forecast).problem != null)
+
+            // As the background refresh would, a while later.
+            clock.advance(Duration.ofHours(1))
+            forecasts.hold(Samples.asheville, Samples.forecast(temperature = 9.0))
+
+            val loaded = assertIs<ForecastState.Loaded>(shown().forecast)
+            assertEquals("9°C", loaded.forecast.current.temperature.words)
+            assertNull(loaded.problem)
+        }
+
+    @Test
+    fun `coming back to the screen fetches again only once the forecast has grown old`() =
+        watching {
+            viewModel.select(Samples.asheville)
+            shown()
+
+            viewModel.refreshIfStale()
+            shown()
+            assertEquals(listOf(Samples.asheville), forecasts.refreshed)
+
+            clock.advance(Duration.ofHours(2))
+            viewModel.refreshIfStale()
+            shown()
+            assertEquals(listOf(Samples.asheville, Samples.asheville), forecasts.refreshed)
+        }
+
+    @Test
+    fun `coming back to the screen does not restart a fetch already under way`() =
+        watching {
+            forecasts.gate = CompletableDeferred()
+            viewModel.select(Samples.asheville)
+            shown()
+
+            viewModel.refreshIfStale()
+            forecasts.gate?.complete(Unit)
+
+            assertIs<ForecastState.Loaded>(shown().forecast)
+            assertEquals(listOf(Samples.asheville), forecasts.refreshed)
+        }
+
+    @Test
     fun `selecting another place gives up the fetch for the first`() =
         watching {
             val gate = CompletableDeferred<Unit>()
