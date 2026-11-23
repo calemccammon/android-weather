@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -90,7 +91,8 @@ class AppJourneyTest {
 
             // The sheet drags up to show the whole week.
             compose.onNodeWithContentDescription("Drag handle").performTouchInput { swipeUp() }
-            compose.onNodeWithText("Weather data by Open-Meteo.com").assertIsDisplayed()
+            // On a small screen the end of the forecast is further down still.
+            compose.onNodeWithText("Weather data by Open-Meteo.com").performScrollTo().assertIsDisplayed()
 
             compose.onNodeWithContentDescription("Save place").performClick()
             compose.onNodeWithContentDescription("Remove from saved places").assertIsOn()
