@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The kind of notification, as the system's settings list it. -->
+    <string name="core_notifications_channel_name">Weather alerts</string>
+    <string name="core_notifications_channel_description">Severe weather forecast at your saved places</string>
+    <!-- %1$s is a condition such as "Thunderstorm", %2$s a place. -->
+    <string name="core_notifications_alert_today">%1$s today in %2$s</string>
+    <string name="core_notifications_alert_tomorrow">%1$s tomorrow in %2$s</string>
+    <string name="core_notifications_alert_text">Open the forecast</string>
+</resources>

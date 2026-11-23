@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The widget's name and what it is for, in the system's list of widgets. -->
+    <string name="widget_name">Weather</string>
+    <string name="widget_description">The weather at the place the app shows</string>
+    <string name="widget_no_place">Open Weather to choose a place</string>
+    <string name="widget_waiting">Waiting for the forecast</string>
+    <!-- Today's low and high. -->
+    <string name="widget_range">%1$d° / %2$d°</string>
+    <!-- The whole widget as one sentence for a screen reader. %1$s place, %2$s condition, %3$s spoken temperature. -->
+    <string name="widget_spoken">%1$s: %2$s, %3$s</string>
+</resources>
