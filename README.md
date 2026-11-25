@@ -30,28 +30,28 @@ notifications, and tests that run the whole app on a device.
 - **Search** with results as you type, after a short pause; an answer to an
   older search never replaces a newer one.
 - **Pick a point** by pressing and holding on the map.
-- **Where you are**: a button asks for approximate location at the moment it
-  is pressed, not at launch. A refusal is answered with one line and a way to
+- **Where you are**: a button asks for approximate location when it is
+  pressed, not at launch. If permission is refused, a short message links to
   the app's settings.
 - **Forecast**: current conditions, then seven days with the chance of
   precipitation and each day's range drawn against the week's.
 - **Works offline**: every forecast fetched is kept. The app opens on the
-  place it showed last, from the device, and says how old the forecast is.
-  When a newer one cannot be fetched, the old one stays with word of why and a
-  way to try again.
+  place it showed last, from the device, and says how old the forecast is. If
+  a refresh fails, the old forecast stays on screen with the reason and a retry
+  button.
 - **Saved places**: a bookmark keeps a place. The list shows each with the
   weather held for it; pull down to refresh them all, and removing one can be
   undone.
 - **Background refresh**: every three hours, with a connection and battery to
-  spare, the saved places' forecasts are fetched again. A screen that is open
-  at the time changes by itself.
+  spare, the saved places' forecasts are fetched again. An open screen
+  updates on its own.
 - **A home-screen widget** with the weather at the place the app shows. It
   is redrawn whenever that changes, and pressing it opens the app.
 - **Severe weather alerts**: turned on from the saved places screen, which
   asks for the notification permission where Android requires it. After each
-  background refresh, a thunderstorm, freezing rain or freezing drizzle
-  forecast today or tomorrow at a saved place is told once, in a notification that opens the
-  app on that place.
+  background refresh, a forecast of thunderstorms, freezing rain or freezing
+  drizzle today or tomorrow at a saved place triggers one notification, which
+  opens the app on that place.
 - **Celsius or Fahrenheit**, remembered between launches. Forecasts are kept
   in metric and converted on the device, so changing units fetches nothing.
 - **Adapts to the window**: a draggable bottom sheet on a phone, a side panel
@@ -67,52 +67,37 @@ notifications, and tests that run the whole app on a device.
 The build is split so that what a module may know is decided by what it
 depends on, and checked by the compiler rather than by review.
 
-| Module                              | Depends on                                              |
-| ----------------------------------- | ------------------------------------------------------- |
-| `core:model`, `core:designsystem`   | nothing                                                 |
-| `core:domain`                       | `core:model`                                            |
-| `core:network`, `core:datastore`    | `core:model`                                            |
-| `core:database`                     | nothing                                                 |
-| `core:data`                         | `core:domain`, `core:network`, `core:database`, `core:datastore` |
-| `core:ui`                           | `core:model`, `core:designsystem`                       |
-| `core:notifications`                | `core:domain`, `core:ui`                                |
-| `feature:home`, `feature:places`    | `core:domain`, `core:model`, `core:ui`, `core:designsystem` |
-| `widget`                            | `core:domain`, `core:ui`, `core:designsystem`           |
-| `sync`                              | `core:domain`                                           |
-| `app`                               | both features, `sync`, `widget`, `core:data`, `core:notifications`, `core:domain`, `core:model`, `core:designsystem` |
-| `benchmark`                         | none; it starts `app` from outside                      |
+| Module | What it holds | Depends on |
+| --- | --- | --- |
+| `core:model` | The app's own types: `Place`, `Forecast`, `WeatherCondition`, `Units`, and the kinds of failure. Plain Kotlin. | nothing |
+| `core:domain` | Repository interfaces, and the use cases that hold the rules: when a forecast is fresh enough, what the background refresh does, which units apply. Plain Kotlin. | `core:model` |
+| `core:network` | Open-Meteo over Retrofit and OkHttp: the wire models, their mapping to the app's types, and every request failure mapped to one of the app's failure kinds. | `core:model` |
+| `core:database` | Room: saved places and the last forecasts fetched. Each schema version is committed under `schemas/`. | nothing |
+| `core:datastore` | Settings (units, the selected place) as JSON through DataStore. An unreadable file is replaced with defaults. | `core:model` |
+| `core:data` | The repository implementations, device location, and the Hilt module that binds each interface. `OfflineFirstForecastRepository` is the core of it. | `core:domain`, `core:network`, `core:database`, `core:datastore` |
+| `core:designsystem` | The Material 3 theme and design tokens. | nothing |
+| `core:ui` | Wording and icons for the app's types, and `UiText`, which lets a view model pick a string without a `Context`. | `core:model`, `core:designsystem` |
+| `core:notifications` | The alert notifications and their channel. | `core:domain`, `core:ui` |
+| `core:testing` | Fakes for every repository, sample data, a clock tests advance by hand, and a main-dispatcher rule for view models. | `core:domain` |
+| `feature:home` | The map, search bar and forecast, with their view models. | `core:domain`, `core:model`, `core:ui`, `core:designsystem` |
+| `feature:places` | The saved places list and its view model. | `core:domain`, `core:model`, `core:ui`, `core:designsystem` |
+| `widget` | The Glance widget, its state, and what keeps it up to date. | `core:domain`, `core:ui`, `core:designsystem` |
+| `sync` | The WorkManager worker and its schedule. | `core:domain` |
+| `app` | The application class, activity and navigation graph; the only module that sees both the screens and their data sources. | both features, `sync`, `widget`, `core:data`, `core:notifications`, `core:domain`, `core:model`, `core:designsystem` |
+| `benchmark` | The baseline profile generator and the startup benchmark, run against the release build. | none; it starts `app` from outside |
 
 Everything that draws or schedules depends on `core:domain` and never on
 `core:data`: the implementations are known only to `app`, which hands them
 over through Hilt.
-
-| Module              | What it holds                                                                                                                                                                                                                                                  |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core:model`        | The app's own types: `Place`, `Forecast`, `WeatherCondition`, `Units`, and the kinds of failure. Plain Kotlin, no Android.                                                                                                                                     |
-| `core:domain`       | The repository interfaces and the use cases that hold the rules: when a forecast is fresh enough not to fetch again, what the background refresh does, which units apply. Plain Kotlin, no Android.                                                             |
-| `core:network`      | Open-Meteo over Retrofit and OkHttp: the wire-shaped models, their translation into the app's types, and every way a request can fail turned into one of the app's own kinds of failure.                                                                                           |
-| `core:database`     | Room: saved places and the forecasts last fetched. Each version of the schema is committed under `schemas/`.                                                                                                                                                   |
-| `core:datastore`    | The settings file: units and the selected place, as JSON through DataStore. A file that cannot be read is started afresh.                                                                                                                                       |
-| `core:data`         | The repository implementations, and the one Hilt module that says which stands behind each interface. `OfflineFirstForecastRepository` is the centre of it. Device location is here too.                                                                        |
-| `core:designsystem` | The Material 3 theme and the design tokens.                                                                                                                                                                                                                    |
-| `core:ui`           | Wording and icons for the app's types, and `UiText`, which lets a view model choose a string without holding a `Context`.                                                                                                                                       |
-| `core:testing`      | Stand-ins for every repository, sample data and a clock that tests move by hand.                                                                                                                                                                                |
-| `feature:home`      | The map, the search bar and the forecast, with their view models.                                                                                                                                                                                               |
-| `feature:places`    | The saved places list and its view model.                                                                                                                                                                                                                       |
-| `core:notifications`| The alert notifications and their channel.                                                                                                                                                                                                                     |
-| `widget`            | The Glance widget, the state it shows and what keeps it drawn.                                                                                                                                                                                                  |
-| `benchmark`         | The baseline profile generator and the startup benchmark, which start the release build from outside.                                                                                                                                                           |
-| `sync`              | The WorkManager worker and its schedule.                                                                                                                                                                                                                        |
-| `app`               | The application class, the activity and the navigation graph. The only module that sees both the screens and where their data comes from.                                                                                                                      |
 
 A feature depends on the domain and the shared UI and nothing else, so it
 cannot name Room, Retrofit or the other feature. The two screens are joined in
 `app`'s `WeatherNavHost`: each says what it needs done, and neither knows the
 other exists.
 
-The view models read through use cases where there is a rule to apply
-(which units, when to fetch again) and write straight to a repository where
-there is none: a use case that only passes a call on is not written.
+View models go through a use case where there is a rule to apply (which
+units, when to fetch again) and call a repository directly where there is
+none; there are no use cases that only forward a call.
 
 Each module's build file is a few lines, because what modules have in common
 is in `build-logic`: convention plugins for an Android library, Compose, Hilt,
@@ -180,7 +165,7 @@ The location button needs Google Play services on the device.
 ./gradlew :app:connectedDebugAndroidTest             # the whole app, on a connected device or emulator
 ```
 
-**On the JVM**, 178 tests:
+**On the JVM:**
 
 - **Model and domain**: plain unit tests of the rules, against the stand-ins
   in `core:testing`.
@@ -196,11 +181,11 @@ The location button needs Google Play services on the device.
 - **View models**: on a test dispatcher, with the clock moved by hand.
 - **Screens**: Compose UI tests of both whole screens, drawn by Robolectric
   with a stand-in for the map, at phone and wide sizes.
-- **Screenshots**: eight pictures of the two screens, light and dark, kept in
-  each feature's `src/test/snapshots` and compared by Roborazzi.
+- **Screenshots**: both screens, light and dark, kept in each feature's
+  `src/test/snapshots` and compared by Roborazzi.
   `./gradlew recordRoborazziDebug` draws them again after an intended change.
 
-**On a device**, six tests in `app/src/androidTest` run the real screens,
+**On a device**, the tests in `app/src/androidTest` run the real screens,
 view models, Hilt graph, Room database, settings file and HTTP client. Two
 things are swapped: a stand-in for Open-Meteo runs on the device, with one
 small Hilt module pointing the app at it, and Hilt's test application stands
@@ -230,9 +215,8 @@ profile, committed under `app/src/release/generated` because producing it
 needs a device. `./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest`
 times a cold start with and without it (on an emulator, add
 `-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR`).
-On the API 36 emulator the median of five cold starts was 475 ms with the
-profile and 500 ms without, a difference inside the noise there; it has not
-been measured on a phone.
+On an emulator the difference was within the noise; it has not been measured
+on a phone.
 
 `.github/workflows/ci.yml` runs the static checks, the JVM tests, the
 screenshot comparison and the device tests (on an emulator) on pushes to
