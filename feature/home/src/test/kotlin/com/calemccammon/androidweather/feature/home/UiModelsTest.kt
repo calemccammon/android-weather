@@ -59,6 +59,18 @@ class UiModelsTest {
     }
 
     @Test
+    fun `a forecast kept since yesterday starts at today, and calls it today`() {
+        val keptOvernight =
+            ForecastUiModel.from(
+                Samples.forecast(),
+                Units.Metric,
+                today = LocalDate.parse("2026-11-19"),
+            )
+
+        assertEquals(listOf("Today", "Fri"), keptOvernight.days.map { it.dayLabel.words })
+    }
+
+    @Test
     fun `a day shows its rounded low and high and its chance of precipitation`() {
         val (today, thursday) = metric.days
 

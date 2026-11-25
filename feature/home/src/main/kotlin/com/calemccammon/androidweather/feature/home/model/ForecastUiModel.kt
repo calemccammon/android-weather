@@ -17,6 +17,7 @@ import com.calemccammon.androidweather.feature.home.R
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import java.time.DayOfWeek
+import java.time.LocalDate
 import kotlin.math.roundToInt
 import com.calemccammon.androidweather.core.ui.R as CoreR
 
@@ -30,20 +31,25 @@ data class ForecastUiModel(
     val days: ImmutableList<DayUiModel>,
 ) {
     companion object {
-        /** Translates a domain [Forecast] for display in [units]. */
+        /**
+         * Translates a domain [Forecast] for display in [units], from [today] on:
+         * a forecast kept since an earlier day leaves out the days gone by.
+         */
         fun from(
             forecast: Forecast,
             units: Units,
+            today: LocalDate = forecast.current.observedAt.toLocalDate(),
         ): ForecastUiModel {
+            val days = forecast.days.filter { !it.date.isBefore(today) }
             // The whole week's range, so each day's bar shows where it sits in it.
-            val weekLow = forecast.days.minOfOrNull { it.low } ?: 0.0
-            val weekHigh = forecast.days.maxOfOrNull { it.high } ?: 0.0
+            val weekLow = days.minOfOrNull { it.low } ?: 0.0
+            val weekHigh = days.maxOfOrNull { it.high } ?: 0.0
 
             return ForecastUiModel(
                 current = CurrentUiModel.from(forecast.current, units),
                 days =
-                    forecast.days
-                        .map { DayUiModel.from(it, forecast.isToday(it), weekLow, weekHigh) }
+                    days
+                        .map { DayUiModel.from(it, it.date == today, weekLow, weekHigh) }
                         .toImmutableList(),
             )
         }
@@ -98,7 +104,7 @@ data class CurrentUiModel(
 /** One row of the week. */
 @Immutable
 data class DayUiModel(
-    /** "Today" for the day the forecast was made on, otherwise a short weekday: "Sat". */
+    /** "Today" for today at the place, otherwise a short weekday: "Sat". */
     val dayLabel: UiText,
     val icon: ImageVector,
     /** "47%", or null when there is no chance worth showing. */

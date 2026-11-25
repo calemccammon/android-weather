@@ -3,7 +3,7 @@ package com.calemccammon.androidweather.widget
 import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
 import com.calemccammon.androidweather.core.domain.usecase.ObserveForecast
 import com.calemccammon.androidweather.core.domain.usecase.ObserveUnits
-import com.calemccammon.androidweather.core.model.Forecast
+import com.calemccammon.androidweather.core.model.CachedForecast
 import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.ui.PlaceUiModel
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import java.time.Clock
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
@@ -57,6 +58,7 @@ class ObserveWidgetState
         private val settings: SettingsRepository,
         private val observeUnits: ObserveUnits,
         private val observeForecast: ObserveForecast,
+        private val clock: Clock,
     ) {
         @OptIn(ExperimentalCoroutinesApi::class)
         operator fun invoke(): Flow<WidgetState> =
@@ -65,21 +67,24 @@ class ObserveWidgetState
                     if (place == null) {
                         flowOf(WidgetState.NoPlace)
                     } else {
-                        observeForecast(place, units).map { cached -> state(place, cached?.forecast, units) }
+                        observeForecast(place, units).map { cached -> state(place, cached, units) }
                     }
                 }.distinctUntilChanged()
 
         private fun state(
             place: Place,
-            forecast: Forecast?,
+            cached: CachedForecast?,
             units: Units,
         ): WidgetState {
             val title = PlaceUiModel.from(place).title
-            if (forecast == null) return WidgetState.Waiting(title)
+            if (cached == null) return WidgetState.Waiting(title)
+            val forecast = cached.forecast
 
             val degrees = forecast.current.temperature.roundToInt()
             val condition = forecast.current.condition.label
-            val today = forecast.days.firstOrNull(forecast::isToday)
+            // Today at the place now, so a forecast kept overnight shows today's range, not yesterday's.
+            val todayAt = cached.todayAt(clock.instant())
+            val today = forecast.days.firstOrNull { it.date == todayAt }
 
             return WidgetState.Weather(
                 place = title,
