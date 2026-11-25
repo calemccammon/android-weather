@@ -22,6 +22,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
@@ -99,6 +100,15 @@ class HomeScreenshotTest {
     @Test
     @Config(qualifiers = "w1100dp-h800dp-xhdpi")
     fun `a forecast on a wide window`() = capture("home_forecast_wide", loaded)
+
+    @Test
+    @Config(qualifiers = "w1100dp-h800dp-xhdpi")
+    fun `a forecast with the largest text`() {
+        // Android's largest text size. Text grows less than twice as wide above 1x
+        // on Android 14 and later, so the columns must be measured, not assumed.
+        RuntimeEnvironment.setFontScale(2f)
+        capture("home_forecast_largest_text", loaded)
+    }
 
     private companion object {
         val lightSea = Color(0xFFAAD3DF)

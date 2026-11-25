@@ -44,10 +44,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.calemccammon.androidweather.core.designsystem.IconSizes
 import com.calemccammon.androidweather.core.designsystem.Spacing
 import com.calemccammon.androidweather.core.ui.Message
@@ -322,11 +323,27 @@ private fun DayRow(day: DayUiModel) {
     val description = day.description.asString()
     val typography = MaterialTheme.typography
     val colors = MaterialTheme.colorScheme
-    // Column widths are in text units, so they grow with the user's text size
-    // and nothing wraps.
+    // Each column is as wide as the widest text it can hold, measured in the
+    // style it is drawn in, so it grows with the user's text size and nothing
+    // is cut off. (A width in sp would not keep up: since Android 14 large
+    // sizes are scaled up less than small ones.)
+    val measurer = rememberTextMeasurer()
+    val today = stringResource(R.string.feature_home_today)
     val (dayWidth, chanceWidth, temperatureWidth) =
         with(LocalDensity.current) {
-            Triple(DAY_COLUMN.sp.toDp(), CHANCE_COLUMN.sp.toDp(), TEMPERATURE_COLUMN.sp.toDp())
+            fun width(
+                text: String,
+                style: TextStyle,
+            ) = measurer
+                .measure(text, style, maxLines = 1)
+                .size.width
+                .toDp() + COLUMN_SLACK
+
+            Triple(
+                width(today, typography.bodyLarge),
+                width(WIDEST_CHANCE, typography.labelMedium),
+                width(WIDEST_TEMPERATURE, typography.bodyLarge),
+            )
         }
     val fixedWidth = dayWidth + IconSizes.row + chanceWidth + temperatureWidth * 2 + Spacing.sm + Spacing.md
 
@@ -405,10 +422,12 @@ private fun RangeBar(
     }
 }
 
-// Column widths at the default text size: room for "Today", "100%" and "-88°".
-private const val DAY_COLUMN = 52
-private const val CHANCE_COLUMN = 44
-private const val TEMPERATURE_COLUMN = 36
+// The widest a chance of precipitation and a temperature can be.
+private const val WIDEST_CHANCE = "100%"
+private const val WIDEST_TEMPERATURE = "-88°"
+
+/** Room between a column's text and the next column. */
+private val COLUMN_SLACK: Dp = 4.dp
 
 private val barThickness: Dp = 6.dp
 
