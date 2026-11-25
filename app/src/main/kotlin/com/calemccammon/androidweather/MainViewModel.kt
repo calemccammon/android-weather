@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.calemccammon.androidweather.core.domain.repository.SavedPlacesRepository
 import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,6 +20,11 @@ class MainViewModel
         private val savedPlaces: SavedPlacesRepository,
         private val settings: SettingsRepository,
     ) : ViewModel() {
+        private val opened = Channel<Unit>(Channel.CONFLATED)
+
+        /** Emits each time an alert has made a saved place the one shown, so the home screen can be brought forward. */
+        val placeOpened: Flow<Unit> = opened.receiveAsFlow()
+
         /**
          * Makes the saved place at these coordinates the one the home screen
          * shows, as when an alert about it is pressed. A place removed since
@@ -32,6 +40,7 @@ class MainViewModel
                         it.place.latitude == latitude && it.place.longitude == longitude
                     } ?: return@launch
                 settings.setSelectedPlace(saved.place)
+                opened.send(Unit)
             }
         }
     }

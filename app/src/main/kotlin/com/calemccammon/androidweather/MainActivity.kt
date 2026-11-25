@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             WeatherTheme {
-                WeatherNavHost()
+                WeatherNavHost(placeOpened = viewModel.placeOpened)
             }
         }
     }
