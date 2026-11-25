@@ -2,6 +2,7 @@ package com.calemccammon.androidweather.feature.home
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,6 +12,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onLast
@@ -60,13 +63,15 @@ class HomeScreenTest {
     private var home by mutableStateOf(HomeState(units = UnitsUiModel.Celsius))
     private var search by mutableStateOf<SearchState>(SearchState.Idle)
 
+    /** What is typed, held as the search view model holds it: outside the screen. */
+    private val query = TextFieldState()
+
     /** What the screen asked for, in order. */
     private val asked = mutableListOf<String>()
     private var pinDrawn: MapPin? = null
 
     private val actions =
         HomeActions(
-            onQueryChange = { asked += "query:$it" },
             onSearchOpened = { asked += "search opened" },
             onChooseResult = { asked += "choose:$it" },
             onRetrySearch = { asked += "retry search" },
@@ -84,6 +89,7 @@ class HomeScreenTest {
             WeatherTheme {
                 HomeScreen(
                     home = home,
+                    query = query,
                     search = search,
                     now = fetchedAt + Duration.ofMinutes(5),
                     actions = actions,
@@ -240,7 +246,8 @@ class HomeScreenTest {
         // The open bar's field is in a window over the closed one's.
         compose.onAllNodesWithContentDescription("Search").onLast().performTextInput("ash")
         compose.waitForIdle()
-        assertEquals("query:ash", asked.last())
+        // What is typed goes into the query the screen was given.
+        assertEquals("ash", query.text.toString())
 
         search = SearchState.Results("ash", persistentListOf(asheville, PlaceUiModel.from(Samples.lisbon)))
         compose.onNodeWithText("Lisbon, Portugal").assertIsDisplayed()
@@ -249,6 +256,35 @@ class HomeScreenTest {
         assertEquals("choose:0", asked.last())
         // Choosing closes the bar.
         compose.onNodeWithText("Lisbon, Portugal").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a search being typed survives the screen being recreated, as on a rotation`() {
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            WeatherTheme {
+                HomeScreen(
+                    home = home,
+                    query = query,
+                    search = search,
+                    now = fetchedAt + Duration.ofMinutes(5),
+                    actions = actions,
+                    map = { _, _, _ -> Box(Modifier.fillMaxSize()) },
+                )
+            }
+        }
+        compose.onNodeWithText("Search for a place").performClick()
+        compose.onAllNodesWithContentDescription("Search").onLast().performTextInput("ash")
+        search = SearchState.Results("ash", persistentListOf(asheville))
+        compose.waitForIdle()
+        asked.clear()
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        // Still open, with what was typed and its results, and no new search started.
+        compose.onAllNodesWithContentDescription("Search").onLast().assertTextEquals("ash")
+        compose.onNodeWithText("Asheville").assertIsDisplayed()
+        assertEquals(emptyList(), asked)
     }
 
     @Test

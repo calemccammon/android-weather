@@ -3,6 +3,7 @@ package com.calemccammon.androidweather.feature.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -63,6 +64,7 @@ class HomeScreenshotTest {
             WeatherTheme(dark = dark) {
                 HomeScreen(
                     home = home,
+                    query = TextFieldState(),
                     search = SearchState.Idle,
                     now = fetchedAt + Duration.ofMinutes(5),
                     actions = noActions,
@@ -104,7 +106,6 @@ class HomeScreenshotTest {
 
         val noActions =
             HomeActions(
-                onQueryChange = {},
                 onSearchOpened = {},
                 onChooseResult = {},
                 onRetrySearch = {},

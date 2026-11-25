@@ -1,7 +1,13 @@
 package com.calemccammon.androidweather.feature.home
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.SavedStateHandleSaveableApi
+import androidx.lifecycle.viewmodel.compose.saveable
 import com.calemccammon.androidweather.core.domain.usecase.SearchPlaces
 import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.WeatherException
@@ -20,17 +26,27 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Turns what the user types into search results.
+ * Holds what the user types into the search bar, and turns it into search
+ * results.
  *
  * It waits for a pause in typing before searching, and a search is given up
  * when a newer one replaces it, so an old answer never shows over a new one.
  */
+@OptIn(SavedStateHandleSaveableApi::class)
 @HiltViewModel
 class SearchViewModel
     @Inject
     constructor(
         private val searchPlaces: SearchPlaces,
+        savedState: SavedStateHandle,
     ) : ViewModel() {
+        /**
+         * What is typed in the open search bar: the one copy of it, which the
+         * bar edits and the searches follow. It is kept in the saved state, so
+         * it outlives a rotation and the process being killed.
+         */
+        val query: TextFieldState by savedState.saveable(saver = TextFieldState.Saver) { TextFieldState() }
+
         /** The text last asked about; what [retry] asks about again. */
         private var latestQuery = ""
 
@@ -43,7 +59,11 @@ class SearchViewModel
         private val mutableState = MutableStateFlow<SearchState>(SearchState.Idle)
         val state: StateFlow<SearchState> = mutableState.asStateFlow()
 
-        fun queryChanged(text: String) {
+        init {
+            viewModelScope.launch { snapshotFlow { query.text.toString() }.collect(::queryChanged) }
+        }
+
+        private fun queryChanged(text: String) {
             val query = text.trim()
             if (query == latestQuery) return
             latestQuery = query
@@ -63,6 +83,7 @@ class SearchViewModel
 
         /** Forgets the current query and results, as when the search bar opens. */
         fun reset() {
+            query.clearText()
             searching?.cancel()
             latestQuery = ""
             results = emptyList()
