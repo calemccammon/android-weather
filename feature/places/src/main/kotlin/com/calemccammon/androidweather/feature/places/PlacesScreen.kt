@@ -289,16 +289,19 @@ private fun PlaceRow(
     modifier: Modifier = Modifier,
 ) {
     val title = place.place.title.asString()
+    // Read out with where it is, so two places of the same name can be told
+    // apart by ear as they are by eye.
+    val spokenName = listOf(title, place.place.subtitle).filter { it.isNotEmpty() }.joinToString(", ")
     val weather = place.weather
     // The place and its weather are read out as one sentence; the remove
     // button stays a button of its own.
     val description =
         if (weather == null) {
-            title
+            spokenName
         } else {
             stringResource(
                 R.string.feature_places_row_description,
-                title,
+                spokenName,
                 weather.condition.asString(),
                 weather.spokenTemperature.asString(),
             )
@@ -336,7 +339,7 @@ private fun PlaceRow(
                 IconButton(onClick = onRemove) {
                     Icon(
                         Icons.Outlined.Delete,
-                        contentDescription = stringResource(R.string.feature_places_remove, title),
+                        contentDescription = stringResource(R.string.feature_places_remove, spokenName),
                     )
                 }
             }
