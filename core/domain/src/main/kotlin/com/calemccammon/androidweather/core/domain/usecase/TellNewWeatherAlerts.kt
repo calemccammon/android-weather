@@ -7,6 +7,7 @@ import com.calemccammon.androidweather.core.domain.repository.SettingsRepository
 import com.calemccammon.androidweather.core.model.SavedPlace
 import com.calemccammon.androidweather.core.model.WeatherAlert
 import kotlinx.coroutines.flow.first
+import java.time.Clock
 import javax.inject.Inject
 
 /**
@@ -20,6 +21,7 @@ class TellNewWeatherAlerts
         private val forecasts: ForecastRepository,
         private val settings: SettingsRepository,
         private val notifier: AlertNotifier,
+        private val clock: Clock,
     ) {
         /**
          * Tells of severe weather today or tomorrow at each saved place, less
@@ -45,9 +47,12 @@ class TellNewWeatherAlerts
         }
 
         private suspend fun alertsAt(saved: SavedPlace): List<WeatherAlert> {
-            val forecast = forecasts.observe(saved.place).first()?.forecast ?: return emptyList()
-            // Today is the day at the place, not on the device.
-            val today = forecast.current.observedAt.toLocalDate()
+            val cached = forecasts.observe(saved.place).first() ?: return emptyList()
+            val forecast = cached.forecast
+            // Today is the day at the place, not on the device, and now, not
+            // when the forecast was fetched: a refresh that failed leaves an
+            // older one, whose first day may be over.
+            val today = cached.todayAt(clock.instant())
             return forecast.days
                 .filter { it.condition.isSevere && (it.date == today || it.date == today.plusDays(1)) }
                 .map { WeatherAlert(saved.place, it.date, it.condition, isToday = it.date == today) }

@@ -102,12 +102,12 @@ class AppJourneyTest {
             compose.onNodeWithContentDescription("Remove from saved places").assertIsOn()
 
             compose.onNodeWithContentDescription("Saved places").performClick()
-            waitFor("Asheville: Overcast, 7 degrees Celsius")
+            waitFor("Asheville, North Carolina, United States: Overcast, 7 degrees Celsius")
 
-            compose.onNodeWithContentDescription("Remove Asheville").performClick()
+            compose.onNodeWithContentDescription("Remove Asheville, North Carolina, United States").performClick()
             waitForText("Removed Asheville")
             compose.onNodeWithText("Undo").performClick()
-            waitFor("Asheville: Overcast, 7 degrees Celsius")
+            waitFor("Asheville, North Carolina, United States: Overcast, 7 degrees Celsius")
         }
     }
 

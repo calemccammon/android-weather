@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmarks
@@ -51,38 +49,35 @@ import com.calemccammon.androidweather.core.ui.announced
 import com.calemccammon.androidweather.core.ui.asString
 import com.calemccammon.androidweather.feature.home.R
 import com.calemccammon.androidweather.feature.home.model.SearchState
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import com.calemccammon.androidweather.core.ui.R as CoreR
 
 /**
  * Material 3 search bar that opens into a list of matching places.
  *
- * Closed, it shows the selected place's name ([placeTitle]). Open, it holds
- * what is being typed, and draws [search] under itself. It does no searching
- * of its own: it reports that it opened, what was typed and which row was
- * chosen.
+ * Closed, it shows the selected place's name ([placeTitle]). Open, it edits
+ * [query], which its caller holds, and draws [search] under itself. It does no
+ * searching of its own: it reports that it opened and which row was chosen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaceSearchBar(
     placeTitle: String?,
+    query: TextFieldState,
     search: SearchState,
     onOpened: () -> Unit,
-    onQueryChange: (String) -> Unit,
     onChoose: (index: Int) -> Unit,
     onRetry: () -> Unit,
     onClear: () -> Unit,
     onOpenSavedPlaces: () -> Unit,
     modifier: Modifier = Modifier,
+    bar: SearchBarState = rememberSearchBarState(),
 ) {
-    val bar = rememberSearchBarState()
     val scope = rememberCoroutineScope()
     // The closed bar shows the place's name; the open one, what is typed.
     val title = remember(placeTitle) { TextFieldState(placeTitle.orEmpty()) }
-    val typed = rememberTextFieldState()
 
-    ReportTyping(bar, typed, onOpened, onQueryChange)
+    ReportOpening(bar, onOpened)
 
     SearchBar(
         state = bar,
@@ -96,7 +91,7 @@ fun PlaceSearchBar(
     ExpandedDockedSearchBar(
         state = bar,
         // The open bar is as wide as its field, up to the closed bar's width.
-        inputField = { InputField(typed, bar, Modifier.fillMaxWidth()) },
+        inputField = { InputField(query, bar, Modifier.fillMaxWidth()) },
     ) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             when (search) {
@@ -117,32 +112,25 @@ fun PlaceSearchBar(
 }
 
 /**
- * Tells the caller when the bar opens, and what is typed in it while open.
- * Opening starts from an empty search: the place's name is a label, not
- * something to search for.
+ * Tells the caller when the bar opens: a new search, which starts empty, as
+ * the place's name is a label and not something to search for. Only a change
+ * from closed to open counts; a bar that comes back open, as after a rotation,
+ * keeps its search.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReportTyping(
+private fun ReportOpening(
     bar: SearchBarState,
-    typed: TextFieldState,
     onOpened: () -> Unit,
-    onQueryChange: (String) -> Unit,
 ) {
     val currentOnOpened by rememberUpdatedState(onOpened)
-    val currentOnQueryChange by rememberUpdatedState(onQueryChange)
 
-    LaunchedEffect(bar, typed) {
+    LaunchedEffect(bar) {
+        var previous = bar.targetValue
         snapshotFlow { bar.targetValue }.collect { target ->
-            if (target == SearchBarValue.Expanded) {
-                typed.clearText()
-                currentOnOpened()
-            }
+            if (target == SearchBarValue.Expanded && previous != SearchBarValue.Expanded) currentOnOpened()
+            previous = target
         }
-    }
-    LaunchedEffect(typed) {
-        // The first value is what the field holds before anyone types.
-        snapshotFlow { typed.text.toString() }.drop(1).collect { currentOnQueryChange(it) }
     }
 }
 

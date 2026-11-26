@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Clock
 import java.time.Instant
 import javax.inject.Inject
 
@@ -63,6 +64,7 @@ class HomeViewModel
         private val settings: SettingsRepository,
         private val savedPlaces: SavedPlacesRepository,
         private val location: LocationRepository,
+        private val clock: Clock,
     ) : ViewModel() {
         private val selectedPlace: Flow<Place?> = settings.settings.map { it.selectedPlace }.distinctUntilChanged()
 
@@ -203,7 +205,12 @@ class HomeViewModel
             when {
                 cached != null ->
                     ForecastState.Loaded(
-                        forecast = ForecastUiModel.from(cached.forecast, units),
+                        forecast =
+                            ForecastUiModel.from(
+                                cached.forecast,
+                                units,
+                                today = cached.todayAt(clock.instant()),
+                            ),
                         fetchedAt = cached.fetchedAt,
                         refreshing = fetch?.running == true,
                         problem = fetch?.failure?.takeIf { fetch.heldAt == cached.fetchedAt }?.message,

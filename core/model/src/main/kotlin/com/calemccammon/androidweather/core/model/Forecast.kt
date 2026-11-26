@@ -1,5 +1,6 @@
 package com.calemccammon.androidweather.core.model
 
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -40,9 +41,6 @@ data class Forecast(
     val current: CurrentConditions,
     val days: List<DailyForecast>,
 ) {
-    /** Whether [day] is the day the current conditions were measured on. */
-    fun isToday(day: DailyForecast): Boolean = day.date == current.observedAt.toLocalDate()
-
     /** This metric forecast with its temperatures and wind speed in [units]. */
     fun inUnits(units: Units): Forecast =
         when (units) {
@@ -72,4 +70,16 @@ data class Forecast(
 data class CachedForecast(
     val forecast: Forecast,
     val fetchedAt: Instant,
-)
+) {
+    /**
+     * The calendar day at the place at [now]: the day its conditions were
+     * measured on, moved on by the time since the forecast was fetched. So a
+     * forecast kept overnight calls the next day today, as the place does.
+     */
+    fun todayAt(now: Instant): LocalDate {
+        val age = Duration.between(fetchedAt, now).coerceAtLeast(Duration.ZERO)
+        return forecast.current.observedAt
+            .plus(age)
+            .toLocalDate()
+    }
+}

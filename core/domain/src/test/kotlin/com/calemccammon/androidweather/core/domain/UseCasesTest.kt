@@ -273,7 +273,7 @@ class UseCasesTest {
     // Alerts
 
     private val notifier = FakeAlertNotifier()
-    private val tellAlerts = TellNewWeatherAlerts(saved, forecasts, settings, notifier)
+    private val tellAlerts = TellNewWeatherAlerts(saved, forecasts, settings, notifier, clock)
 
     /** A forecast made on the 18th with [conditions] on that day and the days after. */
     private fun forecastWith(vararg conditions: WeatherCondition) =
@@ -310,6 +310,33 @@ class UseCasesTest {
                 )
             assertEquals(expected, told)
             assertEquals(expected, notifier.shown)
+        }
+
+    @Test
+    fun `a forecast kept since an earlier day tells of today and tomorrow, not of days gone by`() =
+        runTest {
+            settings.setAlertsEnabled(true)
+            saved.save(Samples.asheville)
+            // Fetched on the 18th, with storms on the 18th and the 20th; the refreshes since have failed.
+            forecasts.hold(
+                Samples.asheville,
+                forecastWith(WeatherCondition.Thunderstorm, WeatherCondition.Clear, WeatherCondition.Thunderstorm),
+            )
+            clock.advance(Duration.ofDays(2))
+
+            val told = tellAlerts()
+
+            assertEquals(
+                listOf(
+                    WeatherAlert(
+                        Samples.asheville,
+                        LocalDate.parse("2026-11-20"),
+                        WeatherCondition.Thunderstorm,
+                        isToday = true,
+                    ),
+                ),
+                told,
+            )
         }
 
     @Test

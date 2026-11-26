@@ -1,5 +1,6 @@
 package com.calemccammon.androidweather.core.model
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.Test
@@ -61,12 +62,6 @@ class ModelsTest {
         )
 
     @Test
-    fun `today is the day the conditions were measured on at the place`() {
-        assertTrue(forecast.isToday(forecast.days[0]))
-        assertFalse(forecast.isToday(forecast.days[1]))
-    }
-
-    @Test
     fun `a forecast in metric units is the forecast as fetched`() {
         assertSame(forecast, forecast.inUnits(Units.Metric))
     }
@@ -98,5 +93,29 @@ class ModelsTest {
     fun `a weather exception's message carries its kind and any detail`() {
         assertEquals("Timeout", WeatherException(WeatherFailure.Timeout).message)
         assertEquals("Rejected: bad latitude", WeatherException(WeatherFailure.Rejected, "bad latitude").message)
+    }
+
+    @Test
+    fun `today at a place moves on as the forecast held for it ages`() {
+        // Fetched at noon UTC, when it was 21:00 at the place.
+        val fetchedAt = Instant.parse("2026-11-18T12:00:00Z")
+        val current =
+            CurrentConditions(
+                observedAt = LocalDateTime.parse("2026-11-18T21:00"),
+                temperature = 10.0,
+                feelsLike = 8.0,
+                windSpeed = 5.0,
+                condition = WeatherCondition.Clear,
+                isDay = false,
+            )
+        val held = CachedForecast(Forecast(current, days = emptyList()), fetchedAt)
+
+        assertEquals(LocalDate.parse("2026-11-18"), held.todayAt(fetchedAt))
+        assertEquals(LocalDate.parse("2026-11-18"), held.todayAt(fetchedAt.plusSeconds(2 * 3600)))
+        // Past midnight at the place: the next day, whatever the date is in UTC.
+        assertEquals(LocalDate.parse("2026-11-19"), held.todayAt(fetchedAt.plusSeconds(4 * 3600)))
+        assertEquals(LocalDate.parse("2026-11-20"), held.todayAt(fetchedAt.plusSeconds(28 * 3600)))
+        // A clock set back is no reason to go back a day.
+        assertEquals(LocalDate.parse("2026-11-18"), held.todayAt(fetchedAt.minusSeconds(48 * 3600)))
     }
 }

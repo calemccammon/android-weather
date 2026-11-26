@@ -62,6 +62,7 @@ class HomeViewModelTest {
             settings = settings,
             savedPlaces = saved,
             location = location,
+            clock = clock,
         )
     }
 
@@ -193,6 +194,20 @@ class HomeViewModelTest {
             viewModel.retryForecast()
 
             assertNull(assertIs<ForecastState.Loaded>(shown().forecast).problem)
+        }
+
+    @Test
+    fun `offline the next day, the forecast held starts at today and calls it today`() =
+        watching {
+            // Fetched on Wednesday the 18th; opened a day later with no connection.
+            forecasts.hold(Samples.asheville, Samples.forecast())
+            clock.advance(Duration.ofDays(1))
+            forecasts.failure = WeatherFailure.NoConnection
+
+            viewModel.select(Samples.asheville)
+
+            val loaded = assertIs<ForecastState.Loaded>(shown().forecast)
+            assertEquals(listOf("Today", "Fri"), loaded.forecast.days.map { it.dayLabel.words })
         }
 
     @Test

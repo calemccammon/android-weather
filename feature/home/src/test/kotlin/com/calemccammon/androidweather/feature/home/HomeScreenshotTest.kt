@@ -3,6 +3,7 @@ package com.calemccammon.androidweather.feature.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -21,6 +22,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
@@ -63,6 +65,7 @@ class HomeScreenshotTest {
             WeatherTheme(dark = dark) {
                 HomeScreen(
                     home = home,
+                    query = TextFieldState(),
                     search = SearchState.Idle,
                     now = fetchedAt + Duration.ofMinutes(5),
                     actions = noActions,
@@ -98,13 +101,21 @@ class HomeScreenshotTest {
     @Config(qualifiers = "w1100dp-h800dp-xhdpi")
     fun `a forecast on a wide window`() = capture("home_forecast_wide", loaded)
 
+    @Test
+    @Config(qualifiers = "w1100dp-h800dp-xhdpi")
+    fun `a forecast with the largest text`() {
+        // Android's largest text size. Text grows less than twice as wide above 1x
+        // on Android 14 and later, so the columns must be measured, not assumed.
+        RuntimeEnvironment.setFontScale(2f)
+        capture("home_forecast_largest_text", loaded)
+    }
+
     private companion object {
         val lightSea = Color(0xFFAAD3DF)
         val darkSea = Color(0xFF1B2A38)
 
         val noActions =
             HomeActions(
-                onQueryChange = {},
                 onSearchOpened = {},
                 onChooseResult = {},
                 onRetrySearch = {},

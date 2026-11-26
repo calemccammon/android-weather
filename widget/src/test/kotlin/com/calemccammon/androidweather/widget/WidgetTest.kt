@@ -13,12 +13,14 @@ import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.testing.FakeDeviceRepository
 import com.calemccammon.androidweather.core.testing.FakeForecastRepository
 import com.calemccammon.androidweather.core.testing.FakeSettingsRepository
+import com.calemccammon.androidweather.core.testing.MutableClock
 import com.calemccammon.androidweather.core.testing.Samples
 import com.calemccammon.androidweather.core.ui.UiText
 import com.calemccammon.androidweather.core.ui.asString
 import kotlinx.coroutines.test.runTest
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -29,13 +31,15 @@ class WidgetTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val UiText.words get() = asString(context.resources)
 
-    private val forecasts = FakeForecastRepository()
+    private val clock = MutableClock()
+    private val forecasts = FakeForecastRepository(clock)
     private val settings = FakeSettingsRepository()
     private val observe =
         ObserveWidgetState(
             settings,
             ObserveUnits(settings, FakeDeviceRepository(country = "GB")),
             ObserveForecast(forecasts),
+            clock,
         )
 
     // What the widget shows
@@ -77,6 +81,18 @@ class WidgetTest {
                 forecasts.hold(Samples.asheville)
                 settings.setAlertsEnabled(true)
                 expectNoEvents()
+            }
+        }
+
+    @Test
+    fun `a forecast kept since yesterday shows today's range, not yesterday's`() =
+        runTest {
+            settings.setSelectedPlace(Samples.asheville)
+            forecasts.hold(Samples.asheville, Samples.forecast())
+            clock.advance(Duration.ofDays(1))
+
+            observe().test {
+                assertEquals("6° / 16°", assertIs<WidgetState.Weather>(awaitItem()).range?.words)
             }
         }
 

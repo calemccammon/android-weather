@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import com.calemccammon.androidweather.core.designsystem.WeatherTheme
 import com.calemccammon.androidweather.core.domain.usecase.SavedPlaceForecast
 import com.calemccammon.androidweather.core.model.CachedForecast
+import com.calemccammon.androidweather.core.model.Place
 import com.calemccammon.androidweather.core.model.SavedPlace
 import com.calemccammon.androidweather.core.model.Units
 import com.calemccammon.androidweather.core.testing.Samples
@@ -66,16 +67,47 @@ class PlacesScreenTest {
         show()
 
         compose.onNodeWithText("Saved places").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Asheville: Overcast, 10 degrees Celsius").assertIsDisplayed()
+        compose
+            .onNodeWithContentDescription(
+                "Asheville, North Carolina, United States: Overcast, 10 degrees Celsius",
+            ).assertIsDisplayed()
         // A place with no forecast held is just its name.
         compose.onNodeWithContentDescription("33.86°S, 151.21°E").assertIsDisplayed()
+    }
+
+    @Test
+    fun `two places of the same name are told apart by where they are`() {
+        val portugal = Samples.lisbon
+        val ohio =
+            Place(latitude = 40.77, longitude = -80.77, name = "Lisbon", region = "Ohio", country = "United States")
+        state =
+            PlacesState(
+                ready = true,
+                places =
+                    listOf(portugal, ohio)
+                        .mapIndexed { i, place ->
+                            SavedPlaceUiModel.from(
+                                SavedPlaceForecast(SavedPlace(i + 1L, place), cached = null),
+                                Units.Metric,
+                            )
+                        }.toImmutableList(),
+            )
+        show()
+
+        compose.onNodeWithContentDescription("Lisbon, Lisbon, Portugal").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Lisbon, Ohio, United States").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Remove Lisbon, Ohio, United States").performClick()
+        assertEquals(listOf("remove:2"), asked)
     }
 
     @Test
     fun `pressing a row opens it and pressing its bin removes it`() {
         show()
 
-        compose.onNodeWithContentDescription("Asheville: Overcast, 10 degrees Celsius").performClick()
+        compose
+            .onNodeWithContentDescription(
+                "Asheville, North Carolina, United States: Overcast, 10 degrees Celsius",
+            ).performClick()
         compose.onNodeWithContentDescription("Remove 33.86°S, 151.21°E").performClick()
         compose.onNodeWithContentDescription("Back").performClick()
 

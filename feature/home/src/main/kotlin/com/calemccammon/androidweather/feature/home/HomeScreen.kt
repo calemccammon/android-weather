@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.BottomSheetScaffold
@@ -37,6 +38,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,7 +87,6 @@ typealias MapSlot = @Composable (
 /** What the home screen can ask for. */
 @Suppress("LongParameterList") // One for each thing a user can do on the screen.
 class HomeActions(
-    val onQueryChange: (String) -> Unit,
     val onSearchOpened: () -> Unit,
     /** The row of the search results that was chosen. */
     val onChooseResult: (index: Int) -> Unit,
@@ -135,12 +136,12 @@ fun HomeRoute(
 
     HomeScreen(
         home = home,
+        query = searchViewModel.query,
         search = search,
         now = now,
         snackbars = snackbars,
         actions =
             HomeActions(
-                onQueryChange = searchViewModel::queryChanged,
                 onSearchOpened = searchViewModel::reset,
                 // The two view models meet here: the row chosen in one is the
                 // place selected in the other.
@@ -218,9 +219,11 @@ private fun rememberMyLocationAction(
  * It holds no view model, so a test or a preview can draw it from plain
  * values, with its own [map].
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     home: HomeState,
+    query: TextFieldState,
     search: SearchState,
     now: Instant,
     actions: HomeActions,
@@ -228,12 +231,17 @@ fun HomeScreen(
     snackbars: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val pin = home.place?.let { MapPin(it.latitude, it.longitude) }
+    // Held here, above the choice of layout: turning the device can switch
+    // between the phone and wide layouts, which place the bar differently, and
+    // an open search should stay open through that.
+    val bar = rememberSearchBarState()
     val searchBar: @Composable (Modifier) -> Unit = { modifier ->
         PlaceSearchBar(
+            bar = bar,
             placeTitle = home.place?.title?.asString(),
+            query = query,
             search = search,
             onOpened = actions.onSearchOpened,
-            onQueryChange = actions.onQueryChange,
             onChoose = actions.onChooseResult,
             onRetry = actions.onRetrySearch,
             onClear = actions.onClearPlace,

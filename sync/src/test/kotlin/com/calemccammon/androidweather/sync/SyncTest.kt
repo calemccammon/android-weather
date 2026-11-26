@@ -46,7 +46,7 @@ class SyncTest {
                     appContext,
                     workerParameters,
                     RefreshSavedPlaces(saved, forecasts, settings, clock),
-                    TellNewWeatherAlerts(saved, forecasts, settings, notifier),
+                    TellNewWeatherAlerts(saved, forecasts, settings, notifier, clock),
                 )
         }
 
